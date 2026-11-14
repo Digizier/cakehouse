@@ -16,7 +16,13 @@ import {
   CheckCircle2,
   Heart,
 } from 'lucide-react';
-import { Product, parseSizeOption, ProductSizeOption } from '@/lib/types';
+import {
+  Product,
+  parseSizeOption,
+  ProductSizeOption,
+  parseFlavorOption,
+  ProductFlavorOption,
+} from '@/lib/types';
 import { getProductBySlug, getProducts } from '@/lib/db';
 import { useCart } from '@/context/CartContext';
 import { ProductCard } from '@/components/ProductCard';
@@ -49,8 +55,9 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
             setSelectedSize('');
           }
 
-          if (prod.has_flavors !== false && prod.flavors && prod.flavors.length > 0) {
-            setSelectedFlavor(prod.flavors[0]);
+          const flavorsList = (prod.flavors || []).map(parseFlavorOption).filter((f) => f.name.length > 0);
+          if (prod.has_flavors !== false && flavorsList.length > 0) {
+            setSelectedFlavor(flavorsList[0].name);
           } else {
             setSelectedFlavor('');
           }
@@ -72,6 +79,11 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
   const parsedSizes: ProductSizeOption[] = useMemo(() => {
     if (!product || product.has_sizes === false) return [];
     return (product.sizes || []).map(parseSizeOption).filter((s) => s.name.length > 0);
+  }, [product]);
+
+  const parsedFlavors: ProductFlavorOption[] = useMemo(() => {
+    if (!product || product.has_flavors === false) return [];
+    return (product.flavors || []).map(parseFlavorOption).filter((f) => f.name.length > 0);
   }, [product]);
 
   if (loading) {
@@ -107,11 +119,15 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
   }
 
   const selectedSizeOption = parsedSizes.find((s) => s.name === selectedSize) || (parsedSizes.length > 0 ? parsedSizes[0] : null);
-  const additionalPrice = (product.has_sizes !== false && selectedSizeOption) ? selectedSizeOption.price : 0;
+  const selectedFlavorOption = parsedFlavors.find((f) => f.name === selectedFlavor) || (parsedFlavors.length > 0 ? parsedFlavors[0] : null);
+
+  const sizeAdditionalPrice = (product.has_sizes !== false && selectedSizeOption) ? selectedSizeOption.price : 0;
+  const flavorAdditionalPrice = (product.has_flavors !== false && selectedFlavorOption) ? selectedFlavorOption.price : 0;
+  const totalAdditionalPrice = sizeAdditionalPrice + flavorAdditionalPrice;
 
   const baseActivePrice = product.discount_price || product.price;
-  const currentPrice = baseActivePrice + additionalPrice;
-  const currentOriginalPrice = product.price + additionalPrice;
+  const currentPrice = baseActivePrice + totalAdditionalPrice;
+  const currentOriginalPrice = product.price + totalAdditionalPrice;
 
   const hasDiscount = !!product.discount_price && product.discount_price < product.price;
   const discountPercent = hasDiscount
@@ -296,24 +312,35 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
               )}
 
               {/* Flavor Selection */}
-              {product.has_flavors !== false && product.flavors && product.flavors.length > 0 && (
+              {product.has_flavors !== false && parsedFlavors.length > 0 && (
                 <div className="mt-4 space-y-1.5">
                   <label className="block text-xs font-bold text-chocolate-900 uppercase tracking-wide">
                     Select Delicious Flavor: <span className="text-gold-600">{selectedFlavor}</span>
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {product.flavors.map((flv) => (
+                    {parsedFlavors.map((flvOpt) => (
                       <button
-                        key={flv}
+                        key={flvOpt.name}
                         type="button"
-                        onClick={() => setSelectedFlavor(flv)}
+                        onClick={() => setSelectedFlavor(flvOpt.name)}
                         className={`text-xs px-3.5 py-1.5 rounded-lg border font-medium transition-all ${
-                          selectedFlavor === flv
+                          selectedFlavor === flvOpt.name
                             ? 'bg-gold-500 text-white border-gold-600 font-bold shadow-2xs'
                             : 'bg-white border-cream-300 text-chocolate-900/80 hover:bg-cream-100'
                         }`}
                       >
-                        {flv}
+                        {flvOpt.name}
+                        {flvOpt.price > 0 && (
+                          <span
+                            className={`ml-1 text-[10px] ${
+                              selectedFlavor === flvOpt.name
+                                ? 'text-cream-100'
+                                : 'text-gold-700 font-bold'
+                            }`}
+                          >
+                            (+Rs. {flvOpt.price.toLocaleString()})
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>

@@ -208,9 +208,9 @@ export async function saveProduct(product: Partial<Product>): Promise<Product> {
     has_sizes: product.has_sizes ?? true,
     has_flavors: product.has_flavors ?? true,
     has_dietary: product.has_dietary ?? true,
-    sizes: product.sizes || ['2.5 lbs'],
-    flavors: product.flavors || ['Chocolate Fudge'],
-    dietary_tags: product.dietary_tags || ['Fresh Cream'],
+    sizes: product.sizes !== undefined ? product.sizes : ['2.5 lbs'],
+    flavors: product.flavors !== undefined ? product.flavors : ['Chocolate Fudge'],
+    dietary_tags: product.dietary_tags !== undefined ? product.dietary_tags : ['Fresh Cream'],
     created_at: product.created_at || now,
     updated_at: now,
   };

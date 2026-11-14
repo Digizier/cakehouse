@@ -79,7 +79,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     customPrice?: number
   ) => {
     const size = product.has_sizes === false ? '' : (selectedSize || (product.sizes?.[0] ? (typeof product.sizes[0] === 'string' ? product.sizes[0] : product.sizes[0].name) : 'Standard'));
-    const flavor = product.has_flavors === false ? '' : (selectedFlavor || product.flavors?.[0] || 'Standard');
+    const flavor = product.has_flavors === false ? '' : (selectedFlavor || (product.flavors?.[0] ? (typeof product.flavors[0] === 'string' ? product.flavors[0] : product.flavors[0].name) : 'Standard'));
     const basePrice = product.discount_price || product.price;
     const finalPrice = typeof customPrice === 'number' && customPrice > 0 ? customPrice : basePrice;
     const cartItemId = `${product.id}-${size}-${flavor}-${customMessage || ''}-${finalPrice}`;

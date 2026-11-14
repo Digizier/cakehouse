@@ -35,6 +35,9 @@ import {
   ProductSizeOption,
   parseSizeOption,
   formatSizeOption,
+  ProductFlavorOption,
+  parseFlavorOption,
+  formatFlavorOption,
   Category,
   SubCategory,
   Banner,
@@ -127,7 +130,10 @@ export default function AdminPage() {
     { name: '2.5 lbs', price: 0 },
     { name: '3.5 lbs', price: 500 },
   ]);
-  const [productFlavorsInput, setProductFlavorsInput] = useState('Chocolate Fudge, Red Velvet');
+  const [productFlavorRows, setProductFlavorRows] = useState<ProductFlavorOption[]>([
+    { name: 'Chocolate Fudge', price: 0 },
+    { name: 'Red Velvet', price: 0 },
+  ]);
   const [productDietaryInput, setProductDietaryInput] = useState('Fresh Cream');
 
   const openAddProductModal = () => {
@@ -138,7 +144,10 @@ export default function AdminPage() {
       { name: '2.5 lbs', price: 0 },
       { name: '3.5 lbs', price: 500 },
     ]);
-    setProductFlavorsInput('Chocolate Fudge, Red Velvet');
+    setProductFlavorRows([
+      { name: 'Chocolate Fudge', price: 0 },
+      { name: 'Red Velvet', price: 0 },
+    ]);
     setProductDietaryInput('Fresh Cream');
     setProductModal({
       open: true,
@@ -157,7 +166,10 @@ export default function AdminPage() {
           { name: '2.5 lbs', price: 0 },
           { name: '3.5 lbs', price: 500 },
         ],
-        flavors: ['Chocolate Fudge', 'Red Velvet'],
+        flavors: [
+          { name: 'Chocolate Fudge', price: 0 },
+          { name: 'Red Velvet', price: 0 },
+        ],
         dietary_tags: ['Fresh Cream'],
         is_available: true,
         is_featured: false,
@@ -178,7 +190,11 @@ export default function AdminPage() {
       parsedSizes.length > 0 ? parsedSizes : [{ name: '2.5 lbs', price: 0 }]
     );
 
-    setProductFlavorsInput((prod.flavors || []).join(', '));
+    const parsedFlavors = (prod.flavors || []).map(parseFlavorOption).filter((f) => f.name.length > 0);
+    setProductFlavorRows(
+      parsedFlavors.length > 0 ? parsedFlavors : [{ name: 'Chocolate Fudge', price: 0 }]
+    );
+
     setProductDietaryInput((prod.dietary_tags || []).join(', '));
     setProductModal({
       open: true,
@@ -722,7 +738,10 @@ export default function AdminPage() {
                               {prod.has_flavors === false ? (
                                 <span className="text-slate-400 italic text-[11px]">No flavors (Off)</span>
                               ) : (
-                                (prod.flavors || []).join(', ') || 'Standard'
+                                (prod.flavors || [])
+                                  .map(parseFlavorOption)
+                                  .map(formatFlavorOption)
+                                  .join(', ') || 'Standard'
                               )}
                             </p>
                             <p className="text-[10px] text-slate-400">
@@ -1644,10 +1663,9 @@ export default function AdminPage() {
                   .map((s) => ({ name: s.name.trim(), price: Math.max(0, Number(s.price) || 0) }))
                   .filter((s) => s.name.length > 0);
 
-                const parsedFlavors = productFlavorsInput
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean);
+                const cleanFlavors = productFlavorRows
+                  .map((f) => ({ name: f.name.trim(), price: Math.max(0, Number(f.price) || 0) }))
+                  .filter((f) => f.name.length > 0);
 
                 const parsedDietary = productDietaryInput
                   .split(',')
@@ -1665,9 +1683,9 @@ export default function AdminPage() {
                       : [{ name: 'Standard', price: 0 }]
                     : [],
                   flavors: productHasFlavors
-                    ? parsedFlavors.length > 0
-                      ? parsedFlavors
-                      : ['Standard Flavor']
+                    ? cleanFlavors.length > 0
+                      ? cleanFlavors
+                      : [{ name: 'Standard Flavor', price: 0 }]
                     : [],
                   dietary_tags: productHasDietary
                     ? parsedDietary.length > 0
@@ -1994,15 +2012,15 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* 2. FLAVOR CHOICES SECTION (Toggle ON/OFF) */}
+              {/* 2. FLAVOR CHOICES SECTION (Toggle ON/OFF & Additional Price) */}
               <div className="p-4 bg-slate-50/70 rounded-2xl border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                   <div>
                     <label className="block font-bold text-slate-800 text-xs">
-                      Flavor Choices (Comma Separated)
+                      Available Flavors &amp; Pricing
                     </label>
                     <p className="text-[11px] text-slate-500">
-                      Enable to offer flavor selection buttons to customers.
+                      Enable to offer flavor options (e.g. Belgian Fudge, Nutella) with optional additional prices.
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -2020,27 +2038,71 @@ export default function AdminPage() {
                 </div>
 
                 {productHasFlavors ? (
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="e.g. Belgian Chocolate Ganache, Nutella Ferrero, Red Velvet"
-                      value={productFlavorsInput}
-                      onChange={(e) => setProductFlavorsInput(e.target.value)}
-                      className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-medium focus:border-gold-500 focus:outline-none"
-                    />
-                    <div className="flex flex-wrap gap-1.5 pt-2">
-                      {productFlavorsInput
-                        .split(',')
-                        .map((f) => f.trim())
-                        .filter(Boolean)
-                        .map((flavor, fIdx) => (
-                          <span
-                            key={fIdx}
-                            className="inline-block bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded text-[10px] font-semibold"
+                  <div className="space-y-2">
+                    <div className="space-y-2">
+                      {productFlavorRows.map((row, fIdx) => (
+                        <div key={fIdx} className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              placeholder="Flavor name (e.g. Belgian Chocolate Ganache, Nutella Ferrero)"
+                              value={row.name}
+                              onChange={(e) => {
+                                const updated = [...productFlavorRows];
+                                updated[fIdx] = { ...updated[fIdx], name: e.target.value };
+                                setProductFlavorRows(updated);
+                              }}
+                              className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-medium focus:border-gold-500 focus:outline-none"
+                            />
+                          </div>
+                          <div className="w-36 relative">
+                            <span className="absolute left-2.5 top-2 text-[11px] text-slate-400 font-bold">
+                              +Rs.
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="50"
+                              placeholder="0"
+                              value={row.price === 0 ? '' : row.price}
+                              onChange={(e) => {
+                                const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
+                                const updated = [...productFlavorRows];
+                                updated[fIdx] = { ...updated[fIdx], price: val };
+                                setProductFlavorRows(updated);
+                              }}
+                              className="w-full pl-10 pr-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-semibold focus:border-gold-500 focus:outline-none"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = productFlavorRows.filter((_, idx) => idx !== fIdx);
+                              setProductFlavorRows(updated.length > 0 ? updated : [{ name: '', price: 0 }]);
+                            }}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Remove flavor option"
                           >
-                            {flavor}
-                          </span>
-                        ))}
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProductFlavorRows([...productFlavorRows, { name: '', price: 0 }]);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold-50 hover:bg-gold-100 text-gold-800 font-bold text-xs border border-gold-200 transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add Another Flavor Option
+                      </button>
+                      <span className="text-[11px] text-slate-500">
+                        Enter <strong>0</strong> for base price, or extra PKR (e.g. <strong>300</strong>).
+                      </span>
                     </div>
                   </div>
                 ) : (
