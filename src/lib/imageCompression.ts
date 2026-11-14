@@ -79,6 +79,15 @@ export async function compressImageToWebP(
   });
 }
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string) || '');
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
+}
+
 /**
  * Uploads a file directly to Supabase Storage and returns its short public CDN URL.
  * Automatically compresses to WebP first!
@@ -106,10 +115,10 @@ export async function uploadImageAndGetUrl(
       });
 
     if (uploadError) {
-      console.warn(`Storage upload to '${bucket}' failed, falling back to local object URL:`, uploadError.message);
-      // As safe fallback if bucket not yet created or permission issue:
-      const fallbackUrl = URL.createObjectURL(compressedFile);
-      return { url: fallbackUrl, error: uploadError.message };
+      console.warn(`Storage upload to '${bucket}' failed, falling back to durable base64:`, uploadError.message);
+      // Resilient fallback: durable base64 data URL that never expires on refresh
+      const fallbackUrl = await fileToBase64(compressedFile);
+      return { url: fallbackUrl || null, error: uploadError.message };
     }
 
     // 4. Retrieve public URL

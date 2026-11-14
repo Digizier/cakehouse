@@ -1,8 +1,55 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Cake, Home, Sparkles } from 'lucide-react';
+import ProductDetailClientView from './product/[slug]/ProductDetailClientView';
+import CategoryClientView from './shop/[category]/CategoryClientView';
 
 export default function NotFound() {
+  const [routeType, setRouteType] = useState<'product' | 'category' | '404' | 'loading'>('loading');
+  const [slugParam, setSlugParam] = useState<string>('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const pathname = window.location.pathname;
+
+    // Check dynamic product route: /product/[slug]
+    const productMatch = pathname.match(/^\/product\/([^/]+)/);
+    if (productMatch && productMatch[1]) {
+      setSlugParam(decodeURIComponent(productMatch[1]));
+      setRouteType('product');
+      return;
+    }
+
+    // Check dynamic category route: /shop/[category]
+    const shopMatch = pathname.match(/^\/shop\/([^/]+)/);
+    if (shopMatch && shopMatch[1]) {
+      setSlugParam(decodeURIComponent(shopMatch[1]));
+      setRouteType('category');
+      return;
+    }
+
+    setRouteType('404');
+  }, []);
+
+  if (routeType === 'loading') {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center bg-cream-50">
+        <div className="w-10 h-10 border-4 border-gold-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (routeType === 'product' && slugParam) {
+    return <ProductDetailClientView slug={slugParam} />;
+  }
+
+  if (routeType === 'category' && slugParam) {
+    return <CategoryClientView categorySlug={slugParam} />;
+  }
+
   return (
     <main className="min-h-[70vh] flex items-center justify-center bg-cream-50/60 p-6 text-center">
       <div className="max-w-md bg-white rounded-3xl p-8 border border-cream-200 shadow-md space-y-4">

@@ -40,10 +40,11 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': contentType });
     fs.createReadStream(filePath).pipe(res);
   } else {
-    // Fallback to 404.html
+    // Dynamic SPA client route fallback (/product/* or /shop/*) or 404
     const notFoundPath = path.join(OUT_DIR, '404.html');
     if (fs.existsSync(notFoundPath)) {
-      res.writeHead(404, { 'Content-Type': 'text/html' });
+      const isDynamicRoute = reqPath.startsWith('/product/') || reqPath.startsWith('/shop/');
+      res.writeHead(isDynamicRoute ? 200 : 404, { 'Content-Type': 'text/html' });
       fs.createReadStream(notFoundPath).pipe(res);
     } else {
       res.writeHead(404, { 'Content-Type': 'text/plain' });

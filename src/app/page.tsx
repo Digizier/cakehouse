@@ -29,12 +29,18 @@ export default function HomePage() {
     async function loadData() {
       try {
         setLoading(true);
-        // Load Flash Deals (top 4 for homepage)
+        // Load Flash Deals (top 4 for homepage, newest first)
         const flash = await getProducts({ flashDeals: true, limit: 4 });
         setFlashDeals(flash);
 
-        // Load Featured Cakes (strictly 8 items max for homepage)
-        const featured = await getProducts({ limit: 8 });
+        // Load Featured Cakes (strictly 8 items max for homepage, prioritizing is_featured)
+        let featured = await getProducts({ featured: true, limit: 8 });
+        if (featured.length < 8) {
+          const recent = await getProducts({ limit: 8 });
+          const existingIds = new Set(featured.map((f) => f.id));
+          const additional = recent.filter((r) => !existingIds.has(r.id));
+          featured = [...featured, ...additional].slice(0, 8);
+        }
         setFeaturedCakes(featured);
       } finally {
         setLoading(false);

@@ -96,6 +96,10 @@ export async function getProducts(options?: {
     if (options?.flashDeals) {
       query = query.eq('is_flash_deal', true);
     }
+
+    // Always order by created_at descending so newest additions appear FIRST
+    query = query.order('created_at', { ascending: false });
+
     if (options?.limit) {
       const from = options.offset || 0;
       query = query.range(from, from + options.limit - 1);
@@ -137,6 +141,10 @@ export async function getProducts(options?: {
   if (options?.searchQuery) {
     filtered = filterProductsLocally(filtered, options.searchQuery);
   }
+
+  // Sort descending by created_at
+  filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+
   if (options?.limit) {
     const from = options.offset || 0;
     filtered = filtered.slice(from, from + options.limit);

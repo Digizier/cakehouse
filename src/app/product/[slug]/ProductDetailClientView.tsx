@@ -202,9 +202,15 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
                     Rs. {product.price.toLocaleString()}
                   </span>
                 )}
-                <span className="text-[11px] font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-200">
-                  Freshly Baked to Order
-                </span>
+                {product.is_available ? (
+                  <span className="text-[11px] font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-200">
+                    Freshly Baked to Order
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                    Currently Out of Stock
+                  </span>
+                )}
               </div>
 
               {/* Short Description */}
@@ -280,42 +286,55 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
               {/* Quantity Selector & Add to Cart Buttons */}
               <div className="mt-6 pt-4 border-t border-cream-200 space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center border border-cream-300 rounded-xl bg-white shadow-2xs">
-                    <button
-                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      className="p-2 text-chocolate-900/60 hover:text-chocolate-900 hover:bg-cream-100 rounded-l-xl"
-                    >
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="w-10 text-center font-bold text-xs text-chocolate-900">
-                      {quantity}
-                    </span>
-                    <button
-                      onClick={() => setQuantity((q) => q + 1)}
-                      className="p-2 text-chocolate-900/60 hover:text-chocolate-900 hover:bg-cream-100 rounded-r-xl"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  {product.is_available && (
+                    <div className="flex items-center border border-cream-300 rounded-xl bg-white shadow-2xs">
+                      <button
+                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                        className="p-2 text-chocolate-900/60 hover:text-chocolate-900 hover:bg-cream-100 rounded-l-xl"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="w-10 text-center font-bold text-xs text-chocolate-900">
+                        {quantity}
+                      </span>
+                      <button
+                        onClick={() => setQuantity((q) => q + 1)}
+                        className="p-2 text-chocolate-900/60 hover:text-chocolate-900 hover:bg-cream-100 rounded-r-xl"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
 
                   {/* Add to Cart Button */}
                   <button
                     onClick={handleAddToCart}
-                    className="flex-1 py-3 px-4 bg-chocolate-900 hover:bg-chocolate-800 text-white rounded-xl text-xs md:text-sm font-bold shadow-md transition-all active:scale-98 flex items-center justify-center gap-2"
+                    disabled={!product.is_available}
+                    className={`flex-1 py-3 px-4 rounded-xl text-xs md:text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2 ${
+                      product.is_available
+                        ? 'bg-chocolate-900 hover:bg-chocolate-800 text-white active:scale-98'
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
                   >
                     <ShoppingBag className="w-4 h-4 text-gold-400" />
-                    <span>Add to Cart &mdash; Rs. {(activePrice * quantity).toLocaleString()}</span>
+                    <span>
+                      {product.is_available
+                        ? `Add to Cart — Rs. ${(activePrice * quantity).toLocaleString()}`
+                        : 'Currently Out of Stock'}
+                    </span>
                   </button>
                 </div>
 
                 {/* Direct Buy Now Button */}
-                <button
-                  onClick={handleBuyNow}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-white rounded-xl text-xs md:text-sm font-bold shadow-md transition-all active:scale-98 flex items-center justify-center gap-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Buy Now (Instant Checkout)</span>
-                </button>
+                {product.is_available && (
+                  <button
+                    onClick={handleBuyNow}
+                    className="w-full py-3 px-4 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-white rounded-xl text-xs md:text-sm font-bold shadow-md transition-all active:scale-98 flex items-center justify-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Buy Now (Instant Checkout)</span>
+                  </button>
+                )}
 
                 {/* Single Contextual WhatsApp Button */}
                 <a

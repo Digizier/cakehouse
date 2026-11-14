@@ -39,19 +39,27 @@ export function ProductCard({ product }: ProductCardProps) {
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
 
-        {/* Discount Badge */}
-        {hasDiscount && (
+        {/* Out of Stock or Discount Badge */}
+        {!product.is_available ? (
+          <span className="absolute top-2 left-2 bg-slate-900/90 text-white text-[9px] md:text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
+            Out of Stock
+          </span>
+        ) : hasDiscount ? (
           <span className="absolute top-2 left-2 bg-berry-500 text-white text-[10px] md:text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">
             -{discountPercent}%
           </span>
-        )}
+        ) : null}
 
-        {/* Flash Deal / Featured Ribbon */}
-        {product.is_flash_deal && (
+        {/* Flash Deal or Featured Ribbon */}
+        {product.is_flash_deal ? (
           <span className="absolute top-2 right-2 bg-gold-600 text-white text-[9px] md:text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded shadow-sm flex items-center gap-0.5">
             <Sparkles className="w-2.5 h-2.5 inline" /> Flash
           </span>
-        )}
+        ) : product.is_featured ? (
+          <span className="absolute top-2 right-2 bg-amber-700 text-white text-[9px] md:text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded shadow-sm flex items-center gap-0.5">
+            Featured
+          </span>
+        ) : null}
 
         {/* Weight / Size Pill at bottom of image */}
         <span className="absolute bottom-1.5 right-1.5 bg-chocolate-900/80 backdrop-blur-sm text-white text-[9px] md:text-[10px] font-semibold px-1.5 py-0.5 rounded">
@@ -97,10 +105,15 @@ export function ProductCard({ product }: ProductCardProps) {
           {/* Compact Add to Cart Button */}
           <button
             onClick={handleQuickAdd}
-            className="w-full py-1.5 md:py-2 px-2 bg-cream-100 hover:bg-gold-500 text-chocolate-900 hover:text-white border border-gold-300/80 rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 active:scale-95 shadow-2xs"
+            disabled={!product.is_available}
+            className={`w-full py-1.5 md:py-2 px-2 rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 shadow-2xs ${
+              product.is_available
+                ? 'bg-cream-100 hover:bg-gold-500 text-chocolate-900 hover:text-white border border-gold-300/80 active:scale-95'
+                : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-75'
+            }`}
           >
             <ShoppingBag className="w-3.5 h-3.5" />
-            <span>Add to Cart</span>
+            <span>{product.is_available ? 'Add to Cart' : 'Out of Stock'}</span>
           </button>
         </div>
       </div>

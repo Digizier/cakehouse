@@ -115,6 +115,46 @@ export default function AdminPage() {
     open: false,
     item: null,
   });
+  // Local string inputs for commas so user can type freely without keystroke stripping
+  const [productSizesInput, setProductSizesInput] = useState('2.5 lbs, 3.5 lbs');
+  const [productFlavorsInput, setProductFlavorsInput] = useState('Chocolate Fudge, Red Velvet');
+  const [productDietaryInput, setProductDietaryInput] = useState('Fresh Cream');
+
+  const openAddProductModal = () => {
+    setProductSizesInput('2.5 lbs, 3.5 lbs');
+    setProductFlavorsInput('Chocolate Fudge, Red Velvet');
+    setProductDietaryInput('Fresh Cream');
+    setProductModal({
+      open: true,
+      item: {
+        name: '',
+        slug: '',
+        description: '',
+        price: 2500,
+        discount_price: null,
+        category_id: categories[0]?.id || 'cat-birthday',
+        sub_category_id: null,
+        sizes: ['2.5 lbs', '3.5 lbs'],
+        flavors: ['Chocolate Fudge', 'Red Velvet'],
+        dietary_tags: ['Fresh Cream'],
+        is_available: true,
+        is_featured: false,
+        is_flash_deal: false,
+        thumbnail_url: '',
+        gallery_urls: [],
+      },
+    });
+  };
+
+  const openEditProductModal = (prod: Product) => {
+    setProductSizesInput((prod.sizes || []).join(', '));
+    setProductFlavorsInput((prod.flavors || []).join(', '));
+    setProductDietaryInput((prod.dietary_tags || []).join(', '));
+    setProductModal({
+      open: true,
+      item: { ...prod },
+    });
+  };
   const [categoryModal, setCategoryModal] = useState<{ open: boolean; item: Partial<Category> | null }>({
     open: false,
     item: null,
@@ -592,27 +632,7 @@ export default function AdminPage() {
                 </button>
 
                 <button
-                  onClick={() =>
-                    setProductModal({
-                      open: true,
-                      item: {
-                        name: '',
-                        slug: '',
-                        description: '',
-                        price: 2500,
-                        discount_price: null,
-                        category_id: categories[0]?.id || 'cat-birthday',
-                        sizes: ['2.5 lbs', '3.5 lbs'],
-                        flavors: ['Chocolate Fudge', 'Red Velvet'],
-                        dietary_tags: ['Fresh Cream'],
-                        is_available: true,
-                        is_featured: false,
-                        is_flash_deal: false,
-                        thumbnail_url: '',
-                        gallery_urls: [],
-                      },
-                    })
-                  }
+                  onClick={openAddProductModal}
                   className="px-4 py-2 bg-gold-600 hover:bg-gold-700 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
@@ -696,7 +716,7 @@ export default function AdminPage() {
                         </td>
                         <td className="py-3 px-4 text-right space-x-1">
                           <button
-                            onClick={() => setProductModal({ open: true, item: prod })}
+                            onClick={() => openEditProductModal(prod)}
                             className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-gold-600 transition-colors"
                             title="Edit Cake"
                           >
@@ -1578,10 +1598,21 @@ export default function AdminPage() {
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-                await saveProduct(productModal.item!);
+                const parsedSizes = productSizesInput.split(',').map((s) => s.trim()).filter(Boolean);
+                const parsedFlavors = productFlavorsInput.split(',').map((s) => s.trim()).filter(Boolean);
+                const parsedDietary = productDietaryInput.split(',').map((s) => s.trim()).filter(Boolean);
+
+                const itemToSave = {
+                  ...productModal.item!,
+                  sizes: parsedSizes.length > 0 ? parsedSizes : ['2.5 lbs'],
+                  flavors: parsedFlavors.length > 0 ? parsedFlavors : ['Chocolate Fudge'],
+                  dietary_tags: parsedDietary.length > 0 ? parsedDietary : ['Fresh Cream'],
+                };
+
+                await saveProduct(itemToSave);
                 await loadAdminData();
                 setProductModal({ open: false, item: null });
-                showToast(`Cake "${productModal.item?.name}" saved successfully to cloud database!`, 'success');
+                showToast(`Cake "${itemToSave.name}" saved successfully to cloud database!`, 'success');
               }}
               className="space-y-4 text-xs"
             >
@@ -1801,16 +1832,8 @@ export default function AdminPage() {
                 <input
                   type="text"
                   placeholder="e.g. 2.0 lbs, 2.5 lbs, 3.5 lbs"
-                  value={(productModal.item.sizes || []).join(', ')}
-                  onChange={(e) =>
-                    setProductModal({
-                      ...productModal,
-                      item: {
-                        ...productModal.item,
-                        sizes: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
-                      },
-                    })
-                  }
+                  value={productSizesInput}
+                  onChange={(e) => setProductSizesInput(e.target.value)}
                   className="w-full p-2.5 rounded-xl border border-slate-300"
                 />
               </div>
@@ -1823,16 +1846,8 @@ export default function AdminPage() {
                 <input
                   type="text"
                   placeholder="e.g. Belgian Chocolate Ganache, Nutella Ferrero, Red Velvet"
-                  value={(productModal.item.flavors || []).join(', ')}
-                  onChange={(e) =>
-                    setProductModal({
-                      ...productModal,
-                      item: {
-                        ...productModal.item,
-                        flavors: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
-                      },
-                    })
-                  }
+                  value={productFlavorsInput}
+                  onChange={(e) => setProductFlavorsInput(e.target.value)}
                   className="w-full p-2.5 rounded-xl border border-slate-300"
                 />
               </div>
@@ -1845,16 +1860,8 @@ export default function AdminPage() {
                 <input
                   type="text"
                   placeholder="e.g. Fresh Cream, 100% Halal, Pure Butter"
-                  value={(productModal.item.dietary_tags || []).join(', ')}
-                  onChange={(e) =>
-                    setProductModal({
-                      ...productModal,
-                      item: {
-                        ...productModal.item,
-                        dietary_tags: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
-                      },
-                    })
-                  }
+                  value={productDietaryInput}
+                  onChange={(e) => setProductDietaryInput(e.target.value)}
                   className="w-full p-2.5 rounded-xl border border-slate-300"
                 />
               </div>
