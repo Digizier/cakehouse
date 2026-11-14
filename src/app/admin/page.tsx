@@ -57,16 +57,26 @@ import {
   deleteBanner,
   getOrders,
   updateOrderStatus,
+  deleteOrder,
   getCustomCakeBookings,
   updateCustomCakeBookingStatus,
+  deleteCustomCakeBooking,
   getSiteSettings,
   saveSiteSettings,
   getCoupons,
+  saveCoupon,
+  deleteCoupon,
 } from '@/lib/db';
 import { uploadImageAndGetUrl } from '@/lib/imageCompression';
 
 const DEFAULT_ADMIN_PASSWORD =
   process.env.NEXT_PUBLIC_ADMIN_PIN || 'cakehouse_sweetbites2026';
+
+interface ToastMessage {
+  id: string;
+  type: 'success' | 'error' | 'info';
+  message: string;
+}
 
 export default function AdminPage() {
   // Authentication Gate State
@@ -74,6 +84,16 @@ export default function AdminPage() {
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState('');
+
+  // Toast Notifications State
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = `toast-${Date.now()}-${Math.random()}`;
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3500);
+  };
 
   // Active Tab: 'dashboard' | 'products' | 'categories' | 'banners' | 'orders' | 'bookings' | 'settings' | 'coupons'
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -107,6 +127,12 @@ export default function AdminPage() {
     open: false,
     item: null,
   });
+  const [couponModal, setCouponModal] = useState<{ open: boolean; item: Partial<Coupon> | null }>({
+    open: false,
+    item: null,
+  });
+  const [quotingBookingId, setQuotingBookingId] = useState<string | null>(null);
+  const [quoteInput, setQuoteInput] = useState<string>('');
   const [deleteModal, setDeleteModal] = useState<{
     open: boolean;
     title: string;
@@ -300,6 +326,27 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
+      {/* Floating Animated Toast Notifications Container */}
+      <div className="fixed top-5 right-5 z-[100] space-y-2 pointer-events-none max-w-sm">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={`pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-semibold backdrop-blur-md transition-all animate-slideIn ${
+              t.type === 'success'
+                ? 'bg-slate-900/95 text-emerald-300 border-emerald-500/40'
+                : t.type === 'error'
+                ? 'bg-slate-900/95 text-rose-300 border-rose-500/40'
+                : 'bg-slate-900/95 text-gold-300 border-gold-500/40'
+            }`}
+          >
+            {t.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+            {t.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />}
+            {t.type === 'info' && <ShieldCheck className="w-4 h-4 text-gold-400 shrink-0" />}
+            <span>{t.message}</span>
+          </div>
+        ))}
+      </div>
+
       {/* Fixed Left Sidebar Navigation (Does NOT scroll with right content) */}
       <aside className="w-64 bg-chocolate-950 text-cream-100 flex flex-col justify-between fixed inset-y-0 left-0 z-30 border-r border-gold-900/60 shadow-xl">
         <div>
@@ -882,22 +929,32 @@ export default function AdminPage() {
                       <p className="text-[10px] text-slate-400">Links to: {ban.link_url || 'None'}</p>
                     </div>
 
-                    <button
-                      onClick={() =>
-                        setDeleteModal({
-                          open: true,
-                          title: `Delete this banner?`,
-                          onConfirm: async () => {
-                            await deleteBanner(ban.id);
-                            await loadAdminData();
-                          },
-                        })
-                      }
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
-                      title="Delete Banner"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setBannerModal({ open: true, item: ban })}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-gold-600 transition-colors"
+                        title="Edit Banner"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() =>
+                          setDeleteModal({
+                            open: true,
+                            title: `Delete banner "${ban.title || 'Untitled'}"?`,
+                            onConfirm: async () => {
+                              await deleteBanner(ban.id);
+                              await loadAdminData();
+                              showToast('Banner deleted successfully!', 'info');
+                            },
+                          })
+                        }
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                        title="Delete Banner"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -987,8 +1044,10 @@ export default function AdminPage() {
                           <select
                             value={ord.status}
                             onChange={async (e) => {
-                              await updateOrderStatus(ord.id, e.target.value as OrderStatus);
+                              const newStatus = e.target.value as OrderStatus;
+                              await updateOrderStatus(ord.id, newStatus);
                               await loadAdminData();
+                              showToast(`Order #${ord.order_number} updated to "${newStatus}"!`, 'success');
                             }}
                             className="text-xs font-semibold py-1 px-2 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none"
                           >
@@ -1001,14 +1060,33 @@ export default function AdminPage() {
                           </select>
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <button
-                            onClick={() => setPrintableInvoiceOrder(ord)}
-                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 hover:text-gold-600 transition-colors inline-flex items-center gap-1"
-                            title="Print Invoice"
-                          >
-                            <Printer className="w-3.5 h-3.5" />
-                            <span className="text-[10px] font-bold">Invoice</span>
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => setPrintableInvoiceOrder(ord)}
+                              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 hover:text-gold-600 transition-colors inline-flex items-center gap-1"
+                              title="Print Invoice"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              <span className="text-[10px] font-bold">Invoice</span>
+                            </button>
+                            <button
+                              onClick={() =>
+                                setDeleteModal({
+                                  open: true,
+                                  title: `Delete Order #${ord.order_number} for customer ${ord.customer_name}?`,
+                                  onConfirm: async () => {
+                                    await deleteOrder(ord.id);
+                                    await loadAdminData();
+                                    showToast(`Order #${ord.order_number} deleted!`, 'info');
+                                  },
+                                })
+                              }
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                              title="Delete Order"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1093,6 +1171,61 @@ export default function AdminPage() {
                     </p>
                   )}
 
+                  {/* Quoted Price Manager */}
+                  <div className="flex items-center justify-between p-2.5 bg-gold-50/60 rounded-xl border border-gold-200">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-chocolate-900">Quoted Price:</span>
+                      <span className="font-serif font-bold text-xs text-gold-700">
+                        {book.quoted_price ? `Rs. ${book.quoted_price.toLocaleString()}` : 'Not quoted yet'}
+                      </span>
+                    </div>
+                    {quotingBookingId === book.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          placeholder="PKR"
+                          value={quoteInput}
+                          onChange={(e) => setQuoteInput(e.target.value)}
+                          className="w-24 p-1 text-xs border border-gold-300 rounded-lg bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const price = Number(quoteInput);
+                            if (price > 0) {
+                              await updateCustomCakeBookingStatus(book.id, 'quoted', price);
+                              await loadAdminData();
+                              setQuotingBookingId(null);
+                              setQuoteInput('');
+                              showToast(`Quoted Rs. ${price.toLocaleString()} for ${book.booking_reference}!`, 'success');
+                            }
+                          }}
+                          className="px-2 py-1 bg-gold-600 hover:bg-gold-700 text-white font-bold rounded-md text-[10px]"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setQuotingBookingId(null)}
+                          className="px-1.5 py-1 text-slate-400 hover:text-slate-600 text-[10px]"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuotingBookingId(book.id);
+                          setQuoteInput(book.quoted_price ? String(book.quoted_price) : '');
+                        }}
+                        className="text-[10px] font-bold text-gold-700 hover:underline"
+                      >
+                        {book.quoted_price ? 'Update Price' : '+ Quote Price'}
+                      </button>
+                    )}
+                  </div>
+
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                     <a
                       href={`https://wa.me/92${book.customer_phone.replace(/[^0-9]/g, '').slice(1)}?text=Hello%20${encodeURIComponent(book.customer_name)},%20this%20is%20Sobia%20from%20Cake%20House%20regarding%20your%20custom%20cake%20booking%20(${book.booking_reference}).`}
@@ -1104,21 +1237,42 @@ export default function AdminPage() {
                       <span>WhatsApp Customer</span>
                     </a>
 
-                    <select
-                      value={book.status}
-                      onChange={async (e) => {
-                        await updateCustomCakeBookingStatus(book.id, e.target.value);
-                        await loadAdminData();
-                      }}
-                      className="text-xs font-semibold py-1.5 px-2.5 border border-slate-300 rounded-lg bg-white"
-                    >
-                      <option value="pending">Pending Review</option>
-                      <option value="quoted">Quoted</option>
-                      <option value="approved">Approved</option>
-                      <option value="in_progress">Baking</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={book.status}
+                        onChange={async (e) => {
+                          await updateCustomCakeBookingStatus(book.id, e.target.value);
+                          await loadAdminData();
+                          showToast(`Custom booking status set to "${e.target.value}"`, 'success');
+                        }}
+                        className="text-xs font-semibold py-1.5 px-2.5 border border-slate-300 rounded-lg bg-white"
+                      >
+                        <option value="pending">Pending Review</option>
+                        <option value="quoted">Quoted</option>
+                        <option value="approved">Approved</option>
+                        <option value="in_progress">Baking</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+
+                      <button
+                        onClick={() =>
+                          setDeleteModal({
+                            open: true,
+                            title: `Delete custom cake request ${book.booking_reference} for ${book.customer_name}?`,
+                            onConfirm: async () => {
+                              await deleteCustomCakeBooking(book.id);
+                              await loadAdminData();
+                              showToast(`Booking ${book.booking_reference} deleted!`, 'info');
+                            },
+                          })
+                        }
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                        title="Delete Request"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1144,7 +1298,7 @@ export default function AdminPage() {
               onSubmit={async (e) => {
                 e.preventDefault();
                 await saveSiteSettings(settings);
-                alert('Settings saved successfully!');
+                showToast('Store & payment settings saved successfully to cloud database!', 'success');
               }}
               className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-2xs space-y-6"
             >
@@ -1296,45 +1450,101 @@ export default function AdminPage() {
         ==================================================================== */}
         {activeTab === 'coupons' && (
           <div className="space-y-6 animate-fadeIn">
-            <div>
-              <h1 className="text-xl md:text-2xl font-serif font-bold text-slate-900">
-                Coupons & Promo Codes
-              </h1>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Manage promotional discount codes for celebrations and marketing campaigns.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-xl md:text-2xl font-serif font-bold text-slate-900">
+                  Coupons & Promo Codes
+                </h1>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Manage promotional discount codes for celebrations and marketing campaigns.
+                </p>
+              </div>
+
+              <button
+                onClick={() =>
+                  setCouponModal({
+                    open: true,
+                    item: {
+                      code: '',
+                      discount_type: 'fixed',
+                      discount_value: 300,
+                      min_spend: 2500,
+                      is_free_delivery: false,
+                      is_active: true,
+                    },
+                  })
+                }
+                className="px-4 py-2 bg-gold-600 hover:bg-gold-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5 self-start"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create New Coupon</span>
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {coupons.map((cp) => (
                 <div
                   key={cp.id}
-                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-2"
+                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3"
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-xs font-extrabold text-gold-700 bg-gold-50 border border-gold-200 px-2.5 py-1 rounded-lg">
                       {cp.code}
                     </span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    <button
+                      onClick={async () => {
+                        await saveCoupon({ ...cp, is_active: !cp.is_active });
+                        await loadAdminData();
+                        showToast(`Coupon ${cp.code} is now ${!cp.is_active ? 'Active' : 'Inactive'}`, 'info');
+                      }}
+                      className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${
                         cp.is_active ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'
                       }`}
+                      title="Click to toggle status"
                     >
-                      {cp.is_active ? 'Active' : 'Expired'}
-                    </span>
+                      {cp.is_active ? '● Active' : '○ Inactive'}
+                    </button>
                   </div>
 
-                  <p className="text-sm font-bold text-slate-900">
-                    {cp.is_free_delivery
-                      ? 'Free Delivery in Karachi'
-                      : cp.discount_type === 'percentage'
-                      ? `${cp.discount_value}% Off`
-                      : `Rs. ${cp.discount_value.toLocaleString()} Off`}
-                  </p>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">
+                      {cp.is_free_delivery
+                        ? 'Free Delivery in Karachi'
+                        : cp.discount_type === 'percentage'
+                        ? `${cp.discount_value}% Off`
+                        : `Rs. ${cp.discount_value.toLocaleString()} Off`}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Min Order Spend: Rs. {cp.min_spend.toLocaleString()}
+                    </p>
+                  </div>
 
-                  <p className="text-xs text-slate-500">
-                    Min Order Spend: Rs. {cp.min_spend.toLocaleString()}
-                  </p>
+                  <div className="flex items-center justify-end gap-1 pt-2 border-t border-slate-100">
+                    <button
+                      onClick={() => setCouponModal({ open: true, item: cp })}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-gold-600 transition-colors"
+                      title="Edit Coupon"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() =>
+                        setDeleteModal({
+                          open: true,
+                          title: `Delete coupon code "${cp.code}"?`,
+                          onConfirm: async () => {
+                            await deleteCoupon(cp.id);
+                            await loadAdminData();
+                            showToast(`Coupon "${cp.code}" deleted successfully!`, 'info');
+                          },
+                        })
+                      }
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                      title="Delete Coupon"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1343,18 +1553,23 @@ export default function AdminPage() {
       </main>
 
       {/* ====================================================================
-          PRODUCT MODAL (Add / Edit Cake with WebP File Upload)
+          PRODUCT MODAL (Add / Edit Cake with WebP File Upload, Multi-Gallery & Full Specs)
       ==================================================================== */}
       {productModal.open && productModal.item && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-          <div className="w-full max-w-xl bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 my-8 max-h-[90vh] overflow-y-auto space-y-4">
+          <div className="w-full max-w-2xl bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 my-8 max-h-[92vh] overflow-y-auto space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-serif font-bold text-base text-slate-900">
-                {productModal.item.id ? 'Edit Cake Details' : 'Add New Celebration Cake'}
-              </h3>
+              <div>
+                <h3 className="font-serif font-bold text-base md:text-lg text-slate-900">
+                  {productModal.item.id ? 'Edit Cake Details' : 'Add New Celebration Cake'}
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Fill in cake title, pricing, flavors, sizes, and upload multiple WebP photos.
+                </p>
+              </div>
               <button
                 onClick={() => setProductModal({ open: false, item: null })}
-                className="p-1 rounded-full text-slate-400 hover:text-slate-700"
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1366,31 +1581,46 @@ export default function AdminPage() {
                 await saveProduct(productModal.item!);
                 await loadAdminData();
                 setProductModal({ open: false, item: null });
+                showToast(`Cake "${productModal.item?.name}" saved successfully to cloud database!`, 'success');
               }}
               className="space-y-4 text-xs"
             >
+              {/* Cake Name & Slug preview */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Cake Name *</label>
                 <input
                   type="text"
                   required
+                  placeholder="e.g. Belgian Truffle Royale Cake"
                   value={productModal.item.name || ''}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    const autoSlug = name
+                      .toLowerCase()
+                      .trim()
+                      .replace(/[^\w\s-]/g, '')
+                      .replace(/[\s_-]+/g, '-')
+                      .replace(/^-+|-+$/g, '');
                     setProductModal({
                       ...productModal,
-                      item: { ...productModal.item, name: e.target.value },
-                    })
-                  }
-                  className="w-full p-2.5 rounded-xl border border-slate-300"
+                      item: { ...productModal.item, name, slug: autoSlug },
+                    });
+                  }}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-gold-500"
                 />
+                <p className="text-[10px] text-slate-400 mt-1 font-mono">
+                  Catalog Link: /product/{productModal.item.slug || 'cake-title'}
+                </p>
               </div>
 
+              {/* Price Row */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Original Price (PKR) *</label>
                   <input
                     type="number"
                     required
+                    min={0}
                     value={productModal.item.price || ''}
                     onChange={(e) =>
                       setProductModal({
@@ -1405,6 +1635,7 @@ export default function AdminPage() {
                   <label className="block font-bold text-slate-700 mb-1">Discount Price (PKR)</label>
                   <input
                     type="number"
+                    min={0}
                     value={productModal.item.discount_price || ''}
                     onChange={(e) =>
                       setProductModal({
@@ -1415,65 +1646,226 @@ export default function AdminPage() {
                         },
                       })
                     }
-                    placeholder="Leave empty if no discount"
+                    placeholder="Leave blank if no discount"
                     className="w-full p-2.5 rounded-xl border border-slate-300"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Category *</label>
-                <select
-                  value={productModal.item.category_id || categories[0]?.id}
-                  onChange={(e) =>
-                    setProductModal({
-                      ...productModal,
-                      item: { ...productModal.item, category_id: e.target.value },
-                    })
-                  }
-                  className="w-full p-2.5 rounded-xl border border-slate-300 bg-white"
-                >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+              {/* Category & Dependent Subcategory */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Parent Category *</label>
+                  <select
+                    value={productModal.item.category_id || categories[0]?.id}
+                    onChange={(e) =>
+                      setProductModal({
+                        ...productModal,
+                        item: {
+                          ...productModal.item,
+                          category_id: e.target.value,
+                          sub_category_id: null,
+                        },
+                      })
+                    }
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white"
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Subcategory (Optional)</label>
+                  <select
+                    value={productModal.item.sub_category_id || ''}
+                    onChange={(e) =>
+                      setProductModal({
+                        ...productModal,
+                        item: { ...productModal.item, sub_category_id: e.target.value || null },
+                      })
+                    }
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white"
+                  >
+                    <option value="">-- General (No Subcategory) --</option>
+                    {subCategories
+                      .filter((s) => s.category_id === (productModal.item?.category_id || categories[0]?.id))
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
               </div>
 
-              {/* Direct File Upload with Auto-WebP Compression */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Upload Photo (Auto-compressed to WebP)</label>
+              {/* Cover Photo Upload with Auto-WebP Compression */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                <label className="block font-bold text-slate-800">
+                  Primary Thumbnail Photo (Auto-compressed to WebP in KBs) *
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        showToast('Compressing cover photo to WebP...', 'info');
+                        const res = await uploadImageAndGetUrl(e.target.files[0], 'cake-images', 'products');
+                        if (res.url) {
+                          setProductModal({
+                            ...productModal,
+                            item: { ...productModal.item, thumbnail_url: res.url },
+                          });
+                          showToast('Cover photo uploaded successfully!', 'success');
+                        }
+                      }
+                    }}
+                    className="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-gold-500 file:text-white file:font-semibold"
+                  />
+                  {productModal.item.thumbnail_url && (
+                    <img
+                      src={productModal.item.thumbnail_url}
+                      alt="Thumbnail"
+                      className="w-14 h-14 object-cover rounded-xl border border-slate-200 shrink-0 shadow-2xs"
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Multiple Gallery Images */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                <label className="block font-bold text-slate-800">
+                  Multiple Gallery Photos (Upload multiple angles, auto-compressed)
+                </label>
                 <input
                   type="file"
+                  multiple
                   accept="image/*"
                   onChange={async (e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      const res = await uploadImageAndGetUrl(e.target.files[0], 'cake-images', 'products');
-                      if (res.url) {
-                        setProductModal({
-                          ...productModal,
-                          item: { ...productModal.item, thumbnail_url: res.url },
-                        });
+                    if (e.target.files && e.target.files.length > 0) {
+                      const files = Array.from(e.target.files);
+                      showToast(`Compressing & uploading ${files.length} gallery image(s)...`, 'info');
+                      const newUrls: string[] = [];
+                      for (const file of files) {
+                        const res = await uploadImageAndGetUrl(file, 'cake-images', 'products/gallery');
+                        if (res.url) newUrls.push(res.url);
                       }
+                      setProductModal({
+                        ...productModal,
+                        item: {
+                          ...productModal.item,
+                          gallery_urls: [...(productModal.item?.gallery_urls || []), ...newUrls],
+                        },
+                      });
+                      showToast(`Added ${newUrls.length} image(s) to gallery!`, 'success');
                     }
                   }}
-                  className="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-gold-500 file:text-white file:font-semibold"
+                  className="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-chocolate-800 file:text-white file:font-semibold"
                 />
-                {productModal.item.thumbnail_url && (
-                  <img
-                    src={productModal.item.thumbnail_url}
-                    alt=""
-                    className="w-16 h-16 object-cover rounded-lg border border-slate-200 mt-2"
-                  />
+
+                {/* Gallery Previews with Delete Pill */}
+                {productModal.item.gallery_urls && productModal.item.gallery_urls.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {productModal.item.gallery_urls.map((url, gIdx) => (
+                      <div key={gIdx} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-slate-300">
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const filtered = (productModal.item?.gallery_urls || []).filter((_, idx) => idx !== gIdx);
+                            setProductModal({
+                              ...productModal,
+                              item: { ...productModal.item, gallery_urls: filtered },
+                            });
+                          }}
+                          className="absolute top-0.5 right-0.5 bg-red-600 text-white rounded-full p-0.5 shadow-sm hover:scale-110 transition-transform"
+                          title="Remove photo"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
 
+              {/* Sizes & Weights (Comma Separated) */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Description *</label>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Available Sizes / Weights (Comma Separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 2.0 lbs, 2.5 lbs, 3.5 lbs"
+                  value={(productModal.item.sizes || []).join(', ')}
+                  onChange={(e) =>
+                    setProductModal({
+                      ...productModal,
+                      item: {
+                        ...productModal.item,
+                        sizes: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
+                      },
+                    })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-slate-300"
+                />
+              </div>
+
+              {/* Flavors (Comma Separated) */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Flavor Choices (Comma Separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Belgian Chocolate Ganache, Nutella Ferrero, Red Velvet"
+                  value={(productModal.item.flavors || []).join(', ')}
+                  onChange={(e) =>
+                    setProductModal({
+                      ...productModal,
+                      item: {
+                        ...productModal.item,
+                        flavors: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
+                      },
+                    })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-slate-300"
+                />
+              </div>
+
+              {/* Dietary / Quality Badges */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Quality & Dietary Badges (Comma Separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Fresh Cream, 100% Halal, Pure Butter"
+                  value={(productModal.item.dietary_tags || []).join(', ')}
+                  onChange={(e) =>
+                    setProductModal({
+                      ...productModal,
+                      item: {
+                        ...productModal.item,
+                        dietary_tags: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
+                      },
+                    })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-slate-300"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Detailed Description *</label>
                 <textarea
                   rows={3}
                   required
+                  placeholder="Describe the layers, rich ganache, sponge softness, and celebration vibes..."
                   value={productModal.item.description || ''}
                   onChange={(e) =>
                     setProductModal({
@@ -1485,8 +1877,9 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div className="flex gap-4 pt-1">
-                <label className="flex items-center gap-2 cursor-pointer">
+              {/* Toggles */}
+              <div className="flex flex-wrap gap-4 pt-2 border-t border-slate-100">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-800">
                   <input
                     type="checkbox"
                     checked={productModal.item.is_available ?? true}
@@ -1496,12 +1889,27 @@ export default function AdminPage() {
                         item: { ...productModal.item, is_available: e.target.checked },
                       })
                     }
-                    className="rounded text-gold-600"
+                    className="rounded text-gold-600 focus:ring-gold-500 w-4 h-4"
                   />
-                  <span>Available in Stock</span>
+                  <span>In Stock (Customer Can Order)</span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={productModal.item.is_featured ?? false}
+                    onChange={(e) =>
+                      setProductModal({
+                        ...productModal,
+                        item: { ...productModal.item, is_featured: e.target.checked },
+                      })
+                    }
+                    className="rounded text-gold-600 focus:ring-gold-500 w-4 h-4"
+                  />
+                  <span>Featured Cake</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-800">
                   <input
                     type="checkbox"
                     checked={productModal.item.is_flash_deal ?? false}
@@ -1511,18 +1919,20 @@ export default function AdminPage() {
                         item: { ...productModal.item, is_flash_deal: e.target.checked },
                       })
                     }
-                    className="rounded text-gold-600"
+                    className="rounded text-gold-600 focus:ring-gold-500 w-4 h-4"
                   />
-                  <span>Flash Deal (Homepage)</span>
+                  <span>Flash Deal (Homepage Showcase)</span>
                 </label>
               </div>
 
-              <button
-                type="submit"
-                className="w-full py-3 bg-gold-600 hover:bg-gold-700 text-white rounded-xl font-bold shadow-sm transition-colors text-xs"
-              >
-                Save Product
-              </button>
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-gold-600 hover:bg-gold-700 text-white rounded-xl font-bold shadow-sm transition-colors text-xs active:scale-[0.99]"
+                >
+                  Save Cake Product to Database
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -1700,14 +2110,14 @@ export default function AdminPage() {
       )}
 
       {/* ====================================================================
-          BANNER MODAL
+          BANNER MODAL (Add / Edit Hero Carousel Banner)
       ==================================================================== */}
       {bannerModal.open && bannerModal.item && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="font-serif font-bold text-base text-slate-900">
-                Upload Homepage Banner
+                {bannerModal.item.id ? 'Edit Homepage Banner' : 'Upload Homepage Banner'}
               </h3>
               <button
                 onClick={() => setBannerModal({ open: false, item: null })}
@@ -1723,20 +2133,22 @@ export default function AdminPage() {
                 await saveBanner(bannerModal.item!);
                 await loadAdminData();
                 setBannerModal({ open: false, item: null });
+                showToast('Banner saved successfully to cloud database!', 'success');
               }}
               className="space-y-4 text-xs"
             >
               <div className="p-3 bg-cream-100 rounded-xl text-chocolate-900 border border-gold-200">
                 <p className="font-bold">Recommended Banner Dimensions:</p>
                 <p className="text-[11px] text-chocolate-900/70 mt-0.5">
-                  1920 &times; 600 px (or 16:9 aspect ratio). Compressed automatically to WebP in KB.
+                  1920 &times; 600 px (or 16:9 ratio). Uploaded images are compressed to WebP automatically in KBs.
                 </p>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Banner Title (For reference)</label>
+                <label className="block font-bold text-slate-700 mb-1">Banner Title (For reference) *</label>
                 <input
                   type="text"
+                  required
                   placeholder="e.g. Corporate Cake Orders Banner"
                   value={bannerModal.item.title || ''}
                   onChange={(e) =>
@@ -1750,18 +2162,36 @@ export default function AdminPage() {
               </div>
 
               <div>
+                <label className="block font-bold text-slate-700 mb-1">Destination URL / Link</label>
+                <input
+                  type="text"
+                  placeholder="e.g. /shop, /custom-cake, or /product/slug"
+                  value={bannerModal.item.link_url || '/shop'}
+                  onChange={(e) =>
+                    setBannerModal({
+                      ...bannerModal,
+                      item: { ...bannerModal.item, link_url: e.target.value },
+                    })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs"
+                />
+              </div>
+
+              <div>
                 <label className="block font-bold text-slate-700 mb-1">Upload Banner Image *</label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={async (e) => {
                     if (e.target.files && e.target.files[0]) {
+                      showToast('Compressing banner to WebP...', 'info');
                       const res = await uploadImageAndGetUrl(e.target.files[0], 'cake-images', 'banners');
                       if (res.url) {
                         setBannerModal({
                           ...bannerModal,
                           item: { ...bannerModal.item, image_url: res.url },
                         });
+                        showToast('Banner image uploaded successfully!', 'success');
                       }
                     }
                   }}
@@ -1776,11 +2206,171 @@ export default function AdminPage() {
                 )}
               </div>
 
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="ban_active"
+                  checked={bannerModal.item.is_active ?? true}
+                  onChange={(e) =>
+                    setBannerModal({
+                      ...bannerModal,
+                      item: { ...bannerModal.item, is_active: e.target.checked },
+                    })
+                  }
+                  className="rounded text-gold-600 focus:ring-gold-500 w-4 h-4"
+                />
+                <label htmlFor="ban_active" className="cursor-pointer font-semibold text-slate-800">
+                  Active (Show on Homepage Hero Carousel)
+                </label>
+              </div>
+
               <button
                 type="submit"
                 className="w-full py-3 bg-gold-600 hover:bg-gold-700 text-white rounded-xl font-bold text-xs shadow-sm"
               >
-                Publish Banner
+                Save Banner
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          COUPON MODAL (Create / Edit Promotional Discount Code)
+      ==================================================================== */}
+      {couponModal.open && couponModal.item && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="font-serif font-bold text-base text-slate-900">
+                {couponModal.item.id ? 'Edit Coupon Code' : 'Create New Promo Coupon'}
+              </h3>
+              <button
+                onClick={() => setCouponModal({ open: false, item: null })}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                await saveCoupon(couponModal.item!);
+                await loadAdminData();
+                setCouponModal({ open: false, item: null });
+                showToast(`Coupon "${couponModal.item?.code}" saved successfully!`, 'success');
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Coupon Promo Code *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. EIDSPECIAL, SWEET20"
+                  value={couponModal.item.code || ''}
+                  onChange={(e) =>
+                    setCouponModal({
+                      ...couponModal,
+                      item: { ...couponModal.item, code: e.target.value.toUpperCase() },
+                    })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-slate-300 font-mono uppercase"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Discount Type</label>
+                  <select
+                    value={couponModal.item.discount_type || 'fixed'}
+                    onChange={(e) =>
+                      setCouponModal({
+                        ...couponModal,
+                        item: { ...couponModal.item, discount_type: e.target.value as any },
+                      })
+                    }
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white"
+                  >
+                    <option value="fixed">Fixed Amount (PKR)</option>
+                    <option value="percentage">Percentage (%)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Discount Value *</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={couponModal.item.discount_value || ''}
+                    onChange={(e) =>
+                      setCouponModal({
+                        ...couponModal,
+                        item: { ...couponModal.item, discount_value: Number(e.target.value) },
+                      })
+                    }
+                    placeholder={couponModal.item.discount_type === 'percentage' ? 'e.g. 15' : 'e.g. 300'}
+                    className="w-full p-2.5 rounded-xl border border-slate-300"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Minimum Order Spend (PKR)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={couponModal.item.min_spend || ''}
+                  onChange={(e) =>
+                    setCouponModal({
+                      ...couponModal,
+                      item: { ...couponModal.item, min_spend: Number(e.target.value) },
+                    })
+                  }
+                  placeholder="e.g. 2500"
+                  className="w-full p-2.5 rounded-xl border border-slate-300"
+                />
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={couponModal.item.is_free_delivery ?? false}
+                    onChange={(e) =>
+                      setCouponModal({
+                        ...couponModal,
+                        item: { ...couponModal.item, is_free_delivery: e.target.checked },
+                      })
+                    }
+                    className="rounded text-gold-600 focus:ring-gold-500 w-4 h-4"
+                  />
+                  <span>Free Delivery Coupon (Waives Rs. 250 fee)</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={couponModal.item.is_active ?? true}
+                    onChange={(e) =>
+                      setCouponModal({
+                        ...couponModal,
+                        item: { ...couponModal.item, is_active: e.target.checked },
+                      })
+                    }
+                    className="rounded text-gold-600 focus:ring-gold-500 w-4 h-4"
+                  />
+                  <span>Coupon Active (Customer can apply at checkout)</span>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-gold-600 hover:bg-gold-700 text-white rounded-xl font-bold text-xs shadow-sm transition-colors"
+              >
+                Save Coupon Code
               </button>
             </form>
           </div>

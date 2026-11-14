@@ -1,7 +1,7 @@
 import pg from 'pg';
 const { Client } = pg;
 
-const connectionString = 'postgresql://postgres:_h5zi9L_rdJc8*H@db.abearjwgkahpaemmueur.supabase.co:5432/postgres';
+const connectionString = 'postgresql://postgres.abearjwgkahpaemmueur:_h5zi9L_rdJc8*H@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres';
 
 async function run() {
   const client = new Client({
@@ -208,6 +208,9 @@ async function run() {
         FOR ALL USING (true) WITH CHECK (true);
       `);
     }
+
+    // 11. Reload PostgREST Schema Cache
+    await client.query(`NOTIFY pgrst, 'reload schema';`);
 
     console.log('All tables, RLS policies, and grants successfully configured in Supabase!');
   } catch (err) {

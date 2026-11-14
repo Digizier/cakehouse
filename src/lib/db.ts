@@ -531,8 +531,23 @@ export async function updateOrderStatus(
     console.warn('Supabase updateOrderStatus error:', err);
   }
 
-  const current = getLocal<Order[]>(STORAGE_KEYS.ORDERS, []);
+  const current = getLocal<Order[]>(STORAGE_KEYS.ORDERS, INITIAL_ORDERS);
   const updated = current.map((o) => (o.id === id ? { ...o, ...updates } : o));
+  setLocal(STORAGE_KEYS.ORDERS, updated);
+
+  dispatchDataEvent('kb_orders_updated');
+  return true;
+}
+
+export async function deleteOrder(id: string): Promise<boolean> {
+  try {
+    await supabase.from('orders').delete().eq('id', id);
+  } catch (err) {
+    console.warn('Supabase deleteOrder error:', err);
+  }
+
+  const current = getLocal<Order[]>(STORAGE_KEYS.ORDERS, INITIAL_ORDERS);
+  const updated = current.filter((o) => o.id !== id);
   setLocal(STORAGE_KEYS.ORDERS, updated);
 
   dispatchDataEvent('kb_orders_updated');
@@ -614,8 +629,23 @@ export async function updateCustomCakeBookingStatus(
     console.warn('Supabase updateCustomCakeBookingStatus error:', err);
   }
 
-  const current = getLocal<CustomCakeBooking[]>(STORAGE_KEYS.BOOKINGS, []);
+  const current = getLocal<CustomCakeBooking[]>(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
   const updated = current.map((b) => (b.id === id ? { ...b, ...updates } : b));
+  setLocal(STORAGE_KEYS.BOOKINGS, updated);
+
+  dispatchDataEvent('kb_bookings_updated');
+  return true;
+}
+
+export async function deleteCustomCakeBooking(id: string): Promise<boolean> {
+  try {
+    await supabase.from('custom_cake_bookings').delete().eq('id', id);
+  } catch (err) {
+    console.warn('Supabase deleteCustomCakeBooking error:', err);
+  }
+
+  const current = getLocal<CustomCakeBooking[]>(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
+  const updated = current.filter((b) => b.id !== id);
   setLocal(STORAGE_KEYS.BOOKINGS, updated);
 
   dispatchDataEvent('kb_bookings_updated');
@@ -675,6 +705,51 @@ export async function getCoupons(): Promise<Coupon[]> {
   } catch {}
 
   return getLocal<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_COUPONS);
+}
+
+export async function saveCoupon(coupon: Partial<Coupon>): Promise<Coupon> {
+  const isNew = !coupon.id;
+  const id = coupon.id || `cp-${Date.now()}`;
+  const completeCoupon: Coupon = {
+    id,
+    code: (coupon.code || 'SWEETOFF').toUpperCase().trim(),
+    discount_type: coupon.discount_type || 'fixed',
+    discount_value: Number(coupon.discount_value) || 0,
+    min_spend: Number(coupon.min_spend) || 0,
+    is_free_delivery: coupon.is_free_delivery ?? false,
+    is_active: coupon.is_active ?? true,
+    expiry_date: coupon.expiry_date || undefined,
+  };
+
+  try {
+    await supabase.from('coupons').upsert(completeCoupon);
+  } catch (err) {
+    console.warn('Supabase saveCoupon error:', err);
+  }
+
+  const current = getLocal<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_COUPONS);
+  const updated = isNew
+    ? [...current, completeCoupon]
+    : current.map((c) => (c.id === id ? completeCoupon : c));
+  setLocal(STORAGE_KEYS.COUPONS, updated);
+
+  dispatchDataEvent('kb_coupons_updated');
+  return completeCoupon;
+}
+
+export async function deleteCoupon(id: string): Promise<boolean> {
+  try {
+    await supabase.from('coupons').delete().eq('id', id);
+  } catch (err) {
+    console.warn('Supabase deleteCoupon error:', err);
+  }
+
+  const current = getLocal<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_COUPONS);
+  const updated = current.filter((c) => c.id !== id);
+  setLocal(STORAGE_KEYS.COUPONS, updated);
+
+  dispatchDataEvent('kb_coupons_updated');
+  return true;
 }
 
 export async function validateCoupon(
