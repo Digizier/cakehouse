@@ -67,7 +67,7 @@ export function dispatchDataEvent(eventName: string): void {
    1. PRODUCTS CRUD & QUERIES (Selective Projections, Zero SELECT *)
 ============================================================================ */
 const PRODUCT_PROJECTION =
-  'id, name, slug, description, price, discount_price, category_id, sub_category_id, thumbnail_url, gallery_urls, is_available, is_featured, is_flash_deal, rating, reviews_count, sizes, flavors, dietary_tags, created_at, updated_at';
+  'id, name, slug, description, price, discount_price, category_id, sub_category_id, thumbnail_url, gallery_urls, is_available, is_featured, is_flash_deal, rating, reviews_count, sizes, flavors, dietary_tags, has_sizes, has_flavors, has_dietary, created_at, updated_at';
 
 export async function getProducts(options?: {
   categoryId?: string;
@@ -205,6 +205,9 @@ export async function saveProduct(product: Partial<Product>): Promise<Product> {
     is_flash_deal: product.is_flash_deal ?? false,
     rating: product.rating ?? 5.0,
     reviews_count: product.reviews_count ?? 1,
+    has_sizes: product.has_sizes ?? true,
+    has_flavors: product.has_flavors ?? true,
+    has_dietary: product.has_dietary ?? true,
     sizes: product.sizes || ['2.5 lbs'],
     flavors: product.flavors || ['Chocolate Fudge'],
     dietary_tags: product.dietary_tags || ['Fresh Cream'],

@@ -466,7 +466,7 @@ Payment Method: ${confirmedOrder.payment_method.toUpperCase()}`;
                           {item.product_name} &times; {item.quantity}
                         </h4>
                         <p className="text-[10px] text-chocolate-900/60">
-                          {item.selected_size} &bull; {item.selected_flavor}
+                          {[item.selected_size, item.selected_flavor].filter(Boolean).join(' • ')}
                         </p>
                       </div>
                     </div>

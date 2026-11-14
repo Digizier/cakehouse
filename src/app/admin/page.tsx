@@ -32,6 +32,9 @@ import {
 } from 'lucide-react';
 import {
   Product,
+  ProductSizeOption,
+  parseSizeOption,
+  formatSizeOption,
   Category,
   SubCategory,
   Banner,
@@ -115,13 +118,26 @@ export default function AdminPage() {
     open: false,
     item: null,
   });
-  // Local string inputs for commas so user can type freely without keystroke stripping
-  const [productSizesInput, setProductSizesInput] = useState('2.5 lbs, 3.5 lbs');
+
+  // Section toggle switches & structured attributes
+  const [productHasSizes, setProductHasSizes] = useState<boolean>(true);
+  const [productHasFlavors, setProductHasFlavors] = useState<boolean>(true);
+  const [productHasDietary, setProductHasDietary] = useState<boolean>(true);
+  const [productSizeRows, setProductSizeRows] = useState<ProductSizeOption[]>([
+    { name: '2.5 lbs', price: 0 },
+    { name: '3.5 lbs', price: 500 },
+  ]);
   const [productFlavorsInput, setProductFlavorsInput] = useState('Chocolate Fudge, Red Velvet');
   const [productDietaryInput, setProductDietaryInput] = useState('Fresh Cream');
 
   const openAddProductModal = () => {
-    setProductSizesInput('2.5 lbs, 3.5 lbs');
+    setProductHasSizes(true);
+    setProductHasFlavors(true);
+    setProductHasDietary(true);
+    setProductSizeRows([
+      { name: '2.5 lbs', price: 0 },
+      { name: '3.5 lbs', price: 500 },
+    ]);
     setProductFlavorsInput('Chocolate Fudge, Red Velvet');
     setProductDietaryInput('Fresh Cream');
     setProductModal({
@@ -134,7 +150,13 @@ export default function AdminPage() {
         discount_price: null,
         category_id: categories[0]?.id || 'cat-birthday',
         sub_category_id: null,
-        sizes: ['2.5 lbs', '3.5 lbs'],
+        has_sizes: true,
+        has_flavors: true,
+        has_dietary: true,
+        sizes: [
+          { name: '2.5 lbs', price: 0 },
+          { name: '3.5 lbs', price: 500 },
+        ],
         flavors: ['Chocolate Fudge', 'Red Velvet'],
         dietary_tags: ['Fresh Cream'],
         is_available: true,
@@ -147,7 +169,15 @@ export default function AdminPage() {
   };
 
   const openEditProductModal = (prod: Product) => {
-    setProductSizesInput((prod.sizes || []).join(', '));
+    setProductHasSizes(prod.has_sizes !== false);
+    setProductHasFlavors(prod.has_flavors !== false);
+    setProductHasDietary(prod.has_dietary !== false);
+
+    const parsedSizes = (prod.sizes || []).map(parseSizeOption).filter((s) => s.name.length > 0);
+    setProductSizeRows(
+      parsedSizes.length > 0 ? parsedSizes : [{ name: '2.5 lbs', price: 0 }]
+    );
+
     setProductFlavorsInput((prod.flavors || []).join(', '));
     setProductDietaryInput((prod.dietary_tags || []).join(', '));
     setProductModal({
@@ -689,10 +719,22 @@ export default function AdminPage() {
                         <td className="py-3 px-4">
                           <div className="max-w-xs space-y-0.5">
                             <p className="truncate text-slate-600 font-medium">
-                              {prod.flavors.join(', ')}
+                              {prod.has_flavors === false ? (
+                                <span className="text-slate-400 italic text-[11px]">No flavors (Off)</span>
+                              ) : (
+                                (prod.flavors || []).join(', ') || 'Standard'
+                              )}
                             </p>
                             <p className="text-[10px] text-slate-400">
-                              Sizes: {prod.sizes.join(', ')}
+                              Sizes:{' '}
+                              {prod.has_sizes === false ? (
+                                <span className="italic">No sizes (Off)</span>
+                              ) : (
+                                (prod.sizes || [])
+                                  .map(parseSizeOption)
+                                  .map(formatSizeOption)
+                                  .join(', ') || 'Standard'
+                              )}
                             </p>
                           </div>
                         </td>
@@ -1598,15 +1640,40 @@ export default function AdminPage() {
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-                const parsedSizes = productSizesInput.split(',').map((s) => s.trim()).filter(Boolean);
-                const parsedFlavors = productFlavorsInput.split(',').map((s) => s.trim()).filter(Boolean);
-                const parsedDietary = productDietaryInput.split(',').map((s) => s.trim()).filter(Boolean);
+                const cleanSizes = productSizeRows
+                  .map((s) => ({ name: s.name.trim(), price: Math.max(0, Number(s.price) || 0) }))
+                  .filter((s) => s.name.length > 0);
 
-                const itemToSave = {
+                const parsedFlavors = productFlavorsInput
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean);
+
+                const parsedDietary = productDietaryInput
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean);
+
+                const itemToSave: Partial<Product> = {
                   ...productModal.item!,
-                  sizes: parsedSizes.length > 0 ? parsedSizes : ['2.5 lbs'],
-                  flavors: parsedFlavors.length > 0 ? parsedFlavors : ['Chocolate Fudge'],
-                  dietary_tags: parsedDietary.length > 0 ? parsedDietary : ['Fresh Cream'],
+                  has_sizes: productHasSizes,
+                  has_flavors: productHasFlavors,
+                  has_dietary: productHasDietary,
+                  sizes: productHasSizes
+                    ? cleanSizes.length > 0
+                      ? cleanSizes
+                      : [{ name: 'Standard', price: 0 }]
+                    : [],
+                  flavors: productHasFlavors
+                    ? parsedFlavors.length > 0
+                      ? parsedFlavors
+                      : ['Standard Flavor']
+                    : [],
+                  dietary_tags: productHasDietary
+                    ? parsedDietary.length > 0
+                      ? parsedDietary
+                      : ['Handcrafted']
+                    : [],
                 };
 
                 await saveProduct(itemToSave);
@@ -1824,46 +1891,226 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Sizes & Weights (Comma Separated) */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Available Sizes / Weights (Comma Separated)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 2.0 lbs, 2.5 lbs, 3.5 lbs"
-                  value={productSizesInput}
-                  onChange={(e) => setProductSizesInput(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300"
-                />
+              {/* 1. SIZES & WEIGHTS SECTION (Toggle ON/OFF & Additional Price) */}
+              <div className="p-4 bg-slate-50/70 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                  <div>
+                    <label className="block font-bold text-slate-800 text-xs">
+                      Available Sizes / Weights &amp; Pricing
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Enable to offer weight tiers (e.g. 1.5 lbs, 2.5 lbs) with optional additional prices.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={productHasSizes}
+                      onChange={(e) => setProductHasSizes(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-gold-600"></div>
+                    <span className={`ml-2 text-[11px] font-bold ${productHasSizes ? 'text-gold-700' : 'text-slate-400'}`}>
+                      {productHasSizes ? 'ON' : 'OFF'}
+                    </span>
+                  </label>
+                </div>
+
+                {productHasSizes ? (
+                  <div className="space-y-2">
+                    <div className="space-y-2">
+                      {productSizeRows.map((row, sIdx) => (
+                        <div key={sIdx} className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              placeholder="Size name (e.g. 2.5 lbs, Pack of 6)"
+                              value={row.name}
+                              onChange={(e) => {
+                                const updated = [...productSizeRows];
+                                updated[sIdx] = { ...updated[sIdx], name: e.target.value };
+                                setProductSizeRows(updated);
+                              }}
+                              className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-medium focus:border-gold-500 focus:outline-none"
+                            />
+                          </div>
+                          <div className="w-36 relative">
+                            <span className="absolute left-2.5 top-2 text-[11px] text-slate-400 font-bold">
+                              +Rs.
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="50"
+                              placeholder="0"
+                              value={row.price === 0 ? '' : row.price}
+                              onChange={(e) => {
+                                const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
+                                const updated = [...productSizeRows];
+                                updated[sIdx] = { ...updated[sIdx], price: val };
+                                setProductSizeRows(updated);
+                              }}
+                              className="w-full pl-10 pr-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-semibold focus:border-gold-500 focus:outline-none"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = productSizeRows.filter((_, idx) => idx !== sIdx);
+                              setProductSizeRows(updated.length > 0 ? updated : [{ name: '', price: 0 }]);
+                            }}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Remove size option"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProductSizeRows([...productSizeRows, { name: '', price: 0 }]);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold-50 hover:bg-gold-100 text-gold-800 font-bold text-xs border border-gold-200 transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add Another Size Option
+                      </button>
+                      <span className="text-[11px] text-slate-500">
+                        Enter <strong>0</strong> for base price, or extra PKR (e.g. <strong>500</strong>).
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 text-amber-800 text-[11px] flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <span>
+                      Sizes are <strong>turned OFF</strong>. Customers will not see size options on the product page (ideal for gift boxes, accessories, or fixed items).
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Flavors (Comma Separated) */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Flavor Choices (Comma Separated)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Belgian Chocolate Ganache, Nutella Ferrero, Red Velvet"
-                  value={productFlavorsInput}
-                  onChange={(e) => setProductFlavorsInput(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300"
-                />
+              {/* 2. FLAVOR CHOICES SECTION (Toggle ON/OFF) */}
+              <div className="p-4 bg-slate-50/70 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                  <div>
+                    <label className="block font-bold text-slate-800 text-xs">
+                      Flavor Choices (Comma Separated)
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Enable to offer flavor selection buttons to customers.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={productHasFlavors}
+                      onChange={(e) => setProductHasFlavors(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-gold-600"></div>
+                    <span className={`ml-2 text-[11px] font-bold ${productHasFlavors ? 'text-gold-700' : 'text-slate-400'}`}>
+                      {productHasFlavors ? 'ON' : 'OFF'}
+                    </span>
+                  </label>
+                </div>
+
+                {productHasFlavors ? (
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="e.g. Belgian Chocolate Ganache, Nutella Ferrero, Red Velvet"
+                      value={productFlavorsInput}
+                      onChange={(e) => setProductFlavorsInput(e.target.value)}
+                      className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-medium focus:border-gold-500 focus:outline-none"
+                    />
+                    <div className="flex flex-wrap gap-1.5 pt-2">
+                      {productFlavorsInput
+                        .split(',')
+                        .map((f) => f.trim())
+                        .filter(Boolean)
+                        .map((flavor, fIdx) => (
+                          <span
+                            key={fIdx}
+                            className="inline-block bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded text-[10px] font-semibold"
+                          >
+                            {flavor}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 text-amber-800 text-[11px] flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <span>
+                      Flavors are <strong>turned OFF</strong>. Flavor choice selector will be hidden on the product page.
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Dietary / Quality Badges */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Quality & Dietary Badges (Comma Separated)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Fresh Cream, 100% Halal, Pure Butter"
-                  value={productDietaryInput}
-                  onChange={(e) => setProductDietaryInput(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300"
-                />
+              {/* 3. QUALITY & DIETARY BADGES SECTION (Toggle ON/OFF) */}
+              <div className="p-4 bg-slate-50/70 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                  <div>
+                    <label className="block font-bold text-slate-800 text-xs">
+                      Quality &amp; Dietary Badges (Comma Separated)
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Show highlight trust pills on product detail page (e.g. Fresh Cream, 100% Halal).
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={productHasDietary}
+                      onChange={(e) => setProductHasDietary(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-gold-600"></div>
+                    <span className={`ml-2 text-[11px] font-bold ${productHasDietary ? 'text-gold-700' : 'text-slate-400'}`}>
+                      {productHasDietary ? 'ON' : 'OFF'}
+                    </span>
+                  </label>
+                </div>
+
+                {productHasDietary ? (
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="e.g. Fresh Cream, 100% Halal, Pure Butter, Eggless Available"
+                      value={productDietaryInput}
+                      onChange={(e) => setProductDietaryInput(e.target.value)}
+                      className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-medium focus:border-gold-500 focus:outline-none"
+                    />
+                    <div className="flex flex-wrap gap-1.5 pt-2">
+                      {productDietaryInput
+                        .split(',')
+                        .map((b) => b.trim())
+                        .filter(Boolean)
+                        .map((badge, bIdx) => (
+                          <span
+                            key={bIdx}
+                            className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                          >
+                            <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                            {badge}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 text-amber-800 text-[11px] flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <span>
+                      Badges are <strong>turned OFF</strong>. No dietary badges will be displayed on the product page.
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Description */}

@@ -133,14 +133,20 @@ export function CartDrawer() {
                     </div>
 
                     {/* Variations details */}
-                    <div className="text-[11px] text-chocolate-900/60 mt-0.5 space-x-2">
-                      <span className="inline-block bg-cream-100 px-1.5 py-0.5 rounded text-chocolate-900/80 font-medium">
-                        {item.selected_size}
-                      </span>
-                      <span className="inline-block bg-cream-100 px-1.5 py-0.5 rounded text-chocolate-900/80">
-                        {item.selected_flavor}
-                      </span>
-                    </div>
+                    {(item.selected_size || item.selected_flavor) && (
+                      <div className="text-[11px] text-chocolate-900/60 mt-0.5 space-x-2">
+                        {item.selected_size && (
+                          <span className="inline-block bg-cream-100 px-1.5 py-0.5 rounded text-chocolate-900/80 font-medium">
+                            {item.selected_size}
+                          </span>
+                        )}
+                        {item.selected_flavor && (
+                          <span className="inline-block bg-cream-100 px-1.5 py-0.5 rounded text-chocolate-900/80">
+                            {item.selected_flavor}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {item.custom_message && (
                       <p className="text-[11px] text-gold-700 italic mt-0.5 truncate">

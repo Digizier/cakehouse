@@ -1,3 +1,34 @@
+export interface ProductSizeOption {
+  name: string;
+  price: number; // additional price in PKR (0 = no additional charge)
+}
+
+export function parseSizeOption(item: string | ProductSizeOption | unknown): ProductSizeOption {
+  if (typeof item === 'object' && item !== null && 'name' in item) {
+    const obj = item as { name?: unknown; price?: unknown };
+    return {
+      name: String(obj.name || '').trim(),
+      price: Math.max(0, Number(obj.price) || 0),
+    };
+  }
+  const str = String(item || '').trim();
+  const match = str.match(/^(.*?)\s*(?:\(\+?(?:Rs\.?\s*)?(\d+)(?:\s*PKR)?\)|:\s*(\d+))$/i);
+  if (match) {
+    return {
+      name: match[1].trim(),
+      price: Math.max(0, Number(match[2] || match[3]) || 0),
+    };
+  }
+  return { name: str, price: 0 };
+}
+
+export function formatSizeOption(option: ProductSizeOption): string {
+  if (option.price > 0) {
+    return `${option.name} (+Rs. ${option.price.toLocaleString()})`;
+  }
+  return option.name;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -14,7 +45,10 @@ export interface Product {
   is_flash_deal: boolean;
   rating: number;
   reviews_count: number;
-  sizes: string[];
+  has_sizes?: boolean;
+  has_flavors?: boolean;
+  has_dietary?: boolean;
+  sizes: (string | ProductSizeOption)[];
   flavors: string[];
   dietary_tags: string[];
   created_at?: string;

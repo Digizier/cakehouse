@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -16,7 +16,7 @@ import {
   CheckCircle2,
   Heart,
 } from 'lucide-react';
-import { Product } from '@/lib/types';
+import { Product, parseSizeOption, ProductSizeOption } from '@/lib/types';
 import { getProductBySlug, getProducts } from '@/lib/db';
 import { useCart } from '@/context/CartContext';
 import { ProductCard } from '@/components/ProductCard';
@@ -42,8 +42,18 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
         setProduct(prod);
         if (prod) {
           setActiveImage(prod.thumbnail_url);
-          setSelectedSize(prod.sizes[0] || '2.5 lbs');
-          setSelectedFlavor(prod.flavors[0] || 'Chocolate Fudge');
+          const sizesList = (prod.sizes || []).map(parseSizeOption).filter((s) => s.name.length > 0);
+          if (prod.has_sizes !== false && sizesList.length > 0) {
+            setSelectedSize(sizesList[0].name);
+          } else {
+            setSelectedSize('');
+          }
+
+          if (prod.has_flavors !== false && prod.flavors && prod.flavors.length > 0) {
+            setSelectedFlavor(prod.flavors[0]);
+          } else {
+            setSelectedFlavor('');
+          }
 
           const related = await getProducts({
             categoryId: prod.category_id,
@@ -58,6 +68,11 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
 
     loadData();
   }, [slug]);
+
+  const parsedSizes: ProductSizeOption[] = useMemo(() => {
+    if (!product || product.has_sizes === false) return [];
+    return (product.sizes || []).map(parseSizeOption).filter((s) => s.name.length > 0);
+  }, [product]);
 
   if (loading) {
     return (
@@ -91,18 +106,24 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
     );
   }
 
-  const activePrice = product.discount_price || product.price;
+  const selectedSizeOption = parsedSizes.find((s) => s.name === selectedSize) || (parsedSizes.length > 0 ? parsedSizes[0] : null);
+  const additionalPrice = (product.has_sizes !== false && selectedSizeOption) ? selectedSizeOption.price : 0;
+
+  const baseActivePrice = product.discount_price || product.price;
+  const currentPrice = baseActivePrice + additionalPrice;
+  const currentOriginalPrice = product.price + additionalPrice;
+
   const hasDiscount = !!product.discount_price && product.discount_price < product.price;
   const discountPercent = hasDiscount
     ? Math.round(((product.price - product.discount_price!) / product.price) * 100)
     : 0;
 
   const handleAddToCart = () => {
-    addToCart(product, selectedSize, selectedFlavor, customMessage, quantity);
+    addToCart(product, selectedSize, selectedFlavor, customMessage, quantity, currentPrice);
   };
 
   const handleBuyNow = () => {
-    addToCart(product, selectedSize, selectedFlavor, customMessage, quantity);
+    addToCart(product, selectedSize, selectedFlavor, customMessage, quantity, currentPrice);
     router.push('/checkout');
   };
 
@@ -111,7 +132,12 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
     ...(product.gallery_urls || []).filter((u) => u !== product.thumbnail_url),
   ];
 
-  const whatsappInquiryUrl = `https://wa.me/92${settings?.whatsapp?.replace(/[^0-9]/g, '').slice(1)}?text=Hello%20Cake%20House,%20I%20am%20interested%20in%20ordering%20*${encodeURIComponent(product.name)}*%20(${selectedSize},%20${selectedFlavor}).`;
+  const selectedDetails = [
+    product.has_sizes !== false && selectedSize ? `Size: ${selectedSize}` : '',
+    product.has_flavors !== false && selectedFlavor ? `Flavor: ${selectedFlavor}` : '',
+  ].filter(Boolean).join(', ');
+
+  const whatsappInquiryUrl = `https://wa.me/92${settings?.whatsapp?.replace(/[^0-9]/g, '').slice(1)}?text=Hello%20Cake%20House,%20I%20am%20interested%20in%20ordering%20*${encodeURIComponent(product.name)}*${selectedDetails ? `%20(${encodeURIComponent(selectedDetails)})` : ''}.`;
 
   return (
     <main className="min-h-screen bg-cream-50/50 pb-20">
@@ -192,14 +218,29 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
                 {product.name}
               </h1>
 
+              {/* Quality & Dietary Badges */}
+              {product.has_dietary !== false && product.dietary_tags && product.dietary_tags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 my-2.5">
+                  {product.dietary_tags.map((tag, tIdx) => (
+                    <span
+                      key={tIdx}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50/90 border border-emerald-200/80 px-2.5 py-0.5 rounded-full shadow-2xs"
+                    >
+                      <Sparkles className="w-3 h-3 text-emerald-600" />
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
               {/* Price Row */}
               <div className="flex items-baseline gap-3 my-3">
                 <span className="text-2xl md:text-3xl font-serif font-bold text-gold-700">
-                  Rs. {activePrice.toLocaleString()}
+                  Rs. {currentPrice.toLocaleString()}
                 </span>
                 {hasDiscount && (
                   <span className="text-sm md:text-base text-chocolate-900/40 line-through">
-                    Rs. {product.price.toLocaleString()}
+                    Rs. {currentOriginalPrice.toLocaleString()}
                   </span>
                 )}
                 {product.is_available ? (
@@ -219,24 +260,35 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
               </p>
 
               {/* Size / Weight Selection */}
-              {product.sizes && product.sizes.length > 0 && (
+              {product.has_sizes !== false && parsedSizes.length > 0 && (
                 <div className="mt-4 space-y-1.5">
                   <label className="block text-xs font-bold text-chocolate-900 uppercase tracking-wide">
                     Select Cake Weight / Size: <span className="text-gold-600">{selectedSize}</span>
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {product.sizes.map((size) => (
+                    {parsedSizes.map((sizeOpt) => (
                       <button
-                        key={size}
+                        key={sizeOpt.name}
                         type="button"
-                        onClick={() => setSelectedSize(size)}
+                        onClick={() => setSelectedSize(sizeOpt.name)}
                         className={`text-xs px-3.5 py-1.5 rounded-lg border font-medium transition-all ${
-                          selectedSize === size
+                          selectedSize === sizeOpt.name
                             ? 'bg-gold-500 text-white border-gold-600 font-bold shadow-2xs'
                             : 'bg-white border-cream-300 text-chocolate-900/80 hover:bg-cream-100'
                         }`}
                       >
-                        {size}
+                        {sizeOpt.name}
+                        {sizeOpt.price > 0 && (
+                          <span
+                            className={`ml-1 text-[10px] ${
+                              selectedSize === sizeOpt.name
+                                ? 'text-cream-100'
+                                : 'text-gold-700 font-bold'
+                            }`}
+                          >
+                            (+Rs. {sizeOpt.price.toLocaleString()})
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -244,7 +296,7 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
               )}
 
               {/* Flavor Selection */}
-              {product.flavors && product.flavors.length > 0 && (
+              {product.has_flavors !== false && product.flavors && product.flavors.length > 0 && (
                 <div className="mt-4 space-y-1.5">
                   <label className="block text-xs font-bold text-chocolate-900 uppercase tracking-wide">
                     Select Delicious Flavor: <span className="text-gold-600">{selectedFlavor}</span>
@@ -319,7 +371,7 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
                     <ShoppingBag className="w-4 h-4 text-gold-400" />
                     <span>
                       {product.is_available
-                        ? `Add to Cart — Rs. ${(activePrice * quantity).toLocaleString()}`
+                        ? `Add to Cart — Rs. ${(currentPrice * quantity).toLocaleString()}`
                         : 'Currently Out of Stock'}
                     </span>
                   </button>

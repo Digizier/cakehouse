@@ -20,7 +20,12 @@ export function ProductCard({ product }: ProductCardProps) {
     ? Math.round(((product.price - product.discount_price!) / product.price) * 100)
     : 0;
 
-  const defaultWeight = product.sizes?.[0] || '2.5 lbs';
+  const defaultWeight =
+    product.has_sizes !== false && product.sizes && product.sizes.length > 0
+      ? typeof product.sizes[0] === 'string'
+        ? product.sizes[0]
+        : product.sizes[0].name
+      : '';
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -61,10 +66,12 @@ export function ProductCard({ product }: ProductCardProps) {
           </span>
         ) : null}
 
-        {/* Weight / Size Pill at bottom of image */}
-        <span className="absolute bottom-1.5 right-1.5 bg-chocolate-900/80 backdrop-blur-sm text-white text-[9px] md:text-[10px] font-semibold px-1.5 py-0.5 rounded">
-          {defaultWeight}
-        </span>
+        {/* Weight / Size Pill at bottom of image if sizes enabled */}
+        {defaultWeight && (
+          <span className="absolute bottom-1.5 right-1.5 bg-chocolate-900/80 backdrop-blur-sm text-white text-[9px] md:text-[10px] font-semibold px-1.5 py-0.5 rounded">
+            {defaultWeight}
+          </span>
+        )}
       </Link>
 
       {/* Product Details & Action Area */}
