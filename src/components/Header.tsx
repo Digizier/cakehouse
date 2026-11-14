@@ -63,28 +63,28 @@ export function Header({
   return (
     <>
       <header className="w-full z-40 bg-white">
-        {/* Top Announcement Bar */}
-        <div className="bg-chocolate-900 text-cream-100 text-[11px] md:text-xs py-1.5 px-4 font-medium tracking-wide">
+        {/* Top Announcement Bar - Light Luxury Palette */}
+        <div className="bg-[#FAF5ED] text-[#4A3525] border-b border-[#E8DEC8] text-[11px] md:text-xs py-1.5 px-4 font-medium tracking-wide">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap">
-              <Sparkles className="w-3.5 h-3.5 text-gold-400 flex-shrink-0 animate-pulse" />
-              <span className="truncate">
-                Fresh Homemade Celebration Cakes in Karachi &bull; Free Delivery Above Rs. {settings?.free_delivery_threshold?.toLocaleString() || '3,500'}
+              <Sparkles className="w-3.5 h-3.5 text-gold-600 flex-shrink-0 animate-pulse" />
+              <span className="truncate font-semibold">
+                Fresh Homemade Celebration Cakes in Karachi &bull; Delivery Charges Apply Across All Areas.
               </span>
             </div>
-            <div className="hidden md:flex items-center gap-4 text-cream-200/90 text-xs flex-shrink-0">
+            <div className="hidden md:flex items-center gap-4 text-[#6B5340] text-xs flex-shrink-0">
               <a
                 href={`https://wa.me/92${settings?.whatsapp?.replace(/[^0-9]/g, '').slice(1)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 hover:text-gold-400 transition-colors"
+                className="flex items-center gap-1 hover:text-gold-700 transition-colors font-medium"
               >
-                <Phone className="w-3 h-3 text-gold-400" />
+                <Phone className="w-3 h-3 text-gold-600" />
                 <span>WhatsApp: {settings?.whatsapp || '0302-9257271'}</span>
               </a>
-              <span className="text-cream-400">|</span>
+              <span className="text-gold-300">|</span>
               <span className="flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-gold-400" />
+                <MapPin className="w-3 h-3 text-gold-600" />
                 <span>Landhi, Karachi</span>
               </span>
             </div>
@@ -132,7 +132,7 @@ export function Header({
             </Link>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden md:flex items-center space-x-6 text-xs lg:text-sm font-medium text-chocolate-900">
+            <nav className="hidden md:flex items-center space-x-4 lg:space-x-5 text-xs lg:text-sm font-medium text-chocolate-900">
               <Link
                 href="/"
                 className={`hover:text-gold-600 transition-colors py-1 ${
@@ -144,7 +144,7 @@ export function Header({
               <Link
                 href="/shop"
                 className={`hover:text-gold-600 transition-colors py-1 ${
-                  pathname?.startsWith('/shop') ? 'text-gold-600 font-bold border-b-2 border-gold-500' : ''
+                  pathname === '/shop' ? 'text-gold-600 font-bold border-b-2 border-gold-500' : ''
                 }`}
               >
                 All Cakes
@@ -157,6 +157,22 @@ export function Header({
               >
                 <Sparkles className="w-3.5 h-3.5 text-gold-500" />
                 <span>Your Cake Your Way</span>
+              </Link>
+              <Link
+                href="/shop/gift-boxes"
+                className={`hover:text-gold-600 transition-colors py-1 ${
+                  pathname?.includes('gift-boxes') ? 'text-gold-600 font-bold border-b-2 border-gold-500' : ''
+                }`}
+              >
+                Gift Boxes
+              </Link>
+              <Link
+                href="/shop/cake-decorations"
+                className={`hover:text-gold-600 transition-colors py-1 ${
+                  pathname?.includes('cake-decorations') ? 'text-gold-600 font-bold border-b-2 border-gold-500' : ''
+                }`}
+              >
+                Cake Decorations
               </Link>
               <Link
                 href="/track-order"
@@ -264,6 +280,8 @@ export function Header({
                   { name: 'Home', href: '/' },
                   { name: 'All Cakes', href: '/shop' },
                   { name: 'Your Cake Your Way', href: '/custom-cake', badge: 'Popular' },
+                  { name: 'Gift Boxes', href: '/shop/gift-boxes', badge: 'New' },
+                  { name: 'Cake Decorations', href: '/shop/cake-decorations', badge: 'New' },
                   { name: 'Birthday Cakes', href: '/shop/birthday-cakes' },
                   { name: 'Chocolate Cakes', href: '/shop/chocolate-cakes' },
                   { name: 'Track Your Order', href: '/track-order' },

@@ -42,6 +42,16 @@ export default function ShopPage() {
         setCategories(cats);
         setSubCategories(subs);
         setProducts(prods);
+
+        // Check URL params e.g. /shop?category=gift-boxes
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search);
+          const catParam = params.get('category');
+          if (catParam) {
+            const matched = cats.find((c) => c.slug === catParam || c.id === catParam);
+            if (matched) setSelectedCategory(matched.id);
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -112,17 +122,17 @@ export default function ShopPage() {
 
   return (
     <main className="min-h-screen bg-cream-50/50 pb-20">
-      {/* Shop Header Banner */}
-      <div className="bg-chocolate-900 text-cream-100 py-8 md:py-12 px-4 border-b border-gold-900/60">
+      {/* Shop Header Banner - Light Luxury Theme */}
+      <div className="bg-[#FAF6F0] text-[#3B281B] py-8 md:py-12 px-4 border-b border-[#E8DFC8]">
         <div className="max-w-7xl mx-auto text-center space-y-2">
-          <span className="text-[10px] md:text-xs uppercase font-extrabold tracking-widest text-gold-400 bg-gold-500/10 border border-gold-500/30 px-3 py-1 rounded-full">
+          <span className="text-[10px] md:text-xs uppercase font-extrabold tracking-widest text-gold-800 bg-gold-100/80 border border-gold-300 px-3 py-1 rounded-full">
             Karachi Bakery Catalog
           </span>
-          <h1 className="text-2xl md:text-4xl font-serif font-bold text-cream-50">
-            Handcrafted Cakes & Delights
+          <h1 className="text-2xl md:text-4xl font-serif font-bold text-[#2B1B10]">
+            Handcrafted Cakes, Gift Boxes & Delights
           </h1>
-          <p className="text-xs md:text-sm text-cream-200/80 max-w-lg mx-auto">
-            Explore our artisanal homemade collection of fresh celebratory cakes, luxury Belgian fudge, and custom creations.
+          <p className="text-xs md:text-sm text-[#5A4332] max-w-lg mx-auto">
+            Explore our artisanal homemade collection of fresh celebratory cakes, luxury gift boxes, accessories, and custom creations.
           </p>
         </div>
       </div>

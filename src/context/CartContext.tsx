@@ -151,16 +151,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setCouponDiscount(0);
   };
 
-  const freeThreshold = settings?.free_delivery_threshold || 3500;
-  const isFreeDelivery =
-    (appliedCoupon?.is_free_delivery ?? false) || subtotal >= freeThreshold;
+  // Client policy: Delivery Charges Apply Across All Areas (unless coupon has is_free_delivery)
+  const isFreeDelivery = appliedCoupon?.is_free_delivery ?? false;
   const deliveryFee = subtotal === 0 || isFreeDelivery ? 0 : settings?.base_delivery_fee || 250;
   const discountAmount = couponDiscount;
   const netTotal = Math.max(0, subtotal - discountAmount + deliveryFee);
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
-  const freeShippingProgress = Math.min(100, Math.round((subtotal / freeThreshold) * 100));
-  const amountNeededForFreeShipping = Math.max(0, freeThreshold - subtotal);
+  const freeShippingProgress = 100;
+  const amountNeededForFreeShipping = 0;
 
   return (
     <CartContext.Provider

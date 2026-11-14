@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, Sparkles, Tag, Check } from 'lucide-react';
+import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, Sparkles, Tag, Check, Truck } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 
 export function CartDrawer() {
@@ -73,27 +73,16 @@ export function CartDrawer() {
             </button>
           </div>
 
-          {/* Free Shipping Progress Bar */}
+          {/* Delivery Policy Note */}
           <div className="bg-cream-100/90 px-5 py-3 border-b border-cream-200">
-            <div className="flex items-center justify-between text-xs font-medium text-chocolate-900 mb-1.5">
-              <span>
-                {amountNeededForFreeShipping === 0 ? (
-                  <span className="text-green-700 font-bold flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5 text-gold-500 inline" /> You unlocked FREE Karachi Delivery!
-                  </span>
-                ) : (
-                  <span>
-                    Add <strong className="text-gold-700">Rs. {amountNeededForFreeShipping.toLocaleString()}</strong> more for <strong>FREE Delivery</strong>
-                  </span>
-                )}
+            <div className="flex items-center justify-between text-xs font-medium text-chocolate-900">
+              <span className="flex items-center gap-1.5 font-semibold text-chocolate-900">
+                <Truck className="w-4 h-4 text-gold-600 inline" />
+                <span>Delivery Charges Apply Across All Areas</span>
               </span>
-              <span className="font-bold text-gold-700">{freeShippingProgress}%</span>
-            </div>
-            <div className="w-full bg-cream-300 rounded-full h-2 overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-gold-400 to-gold-600 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${freeShippingProgress}%` }}
-              />
+              <span className="text-[10px] bg-gold-100 text-gold-800 font-bold px-2 py-0.5 rounded-full border border-gold-300">
+                Chilled Safe Transit
+              </span>
             </div>
           </div>
 

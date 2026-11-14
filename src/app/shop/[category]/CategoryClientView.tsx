@@ -59,28 +59,28 @@ export default function CategoryClientView({ categorySlug }: { categorySlug: str
 
   return (
     <main className="min-h-screen bg-cream-50/50 pb-20">
-      {/* Category Banner */}
-      <div className="bg-chocolate-900 text-cream-100 py-8 md:py-12 px-4 border-b border-gold-900/60">
+      {/* Category Banner - Light Luxury Theme */}
+      <div className="bg-[#FAF6F0] text-[#3B281B] py-8 md:py-12 px-4 border-b border-[#E8DFC8]">
         <div className="max-w-7xl mx-auto text-center space-y-2">
           {/* Breadcrumbs */}
-          <div className="flex items-center justify-center gap-1.5 text-xs text-cream-300/70 mb-2">
-            <Link href="/" className="hover:text-gold-400 transition-colors">
+          <div className="flex items-center justify-center gap-1.5 text-xs text-[#7A6350] mb-2">
+            <Link href="/" className="hover:text-gold-700 transition-colors">
               Home
             </Link>
             <ChevronRight className="w-3 h-3" />
-            <Link href="/shop" className="hover:text-gold-400 transition-colors">
+            <Link href="/shop" className="hover:text-gold-700 transition-colors">
               Cakes
             </Link>
             <ChevronRight className="w-3 h-3" />
-            <span className="text-gold-400 font-semibold capitalize">
+            <span className="text-gold-800 font-semibold capitalize">
               {category?.name || categorySlug.replace(/-/g, ' ')}
             </span>
           </div>
 
-          <h1 className="text-2xl md:text-4xl font-serif font-bold text-cream-50">
+          <h1 className="text-2xl md:text-4xl font-serif font-bold text-[#2B1B10]">
             {category?.name || 'Artisanal Cakes'}
           </h1>
-          <p className="text-xs md:text-sm text-cream-200/80 max-w-lg mx-auto">
+          <p className="text-xs md:text-sm text-[#5A4332] max-w-lg mx-auto">
             {category?.description ||
               'Freshly handcrafted celebration cakes made with premium butter and love in Karachi.'}
           </p>
