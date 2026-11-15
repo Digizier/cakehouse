@@ -22,16 +22,18 @@ import {
   ProductSizeOption,
   parseFlavorOption,
   ProductFlavorOption,
+  Category,
 } from '@/lib/types';
-import { getProductBySlug, getProducts } from '@/lib/db';
+import { getProductBySlug, getProducts, getCategories } from '@/lib/db';
 import { useCart } from '@/context/CartContext';
 import { ProductCard } from '@/components/ProductCard';
 
 export default function ProductDetailClientView({ slug }: { slug: string }) {
   const router = useRouter();
-  const { addToCart, settings } = useCart();
+  const { addToCart, closeCart, settings } = useCart();
 
   const [product, setProduct] = useState<Product | null>(null);
+  const [category, setCategory] = useState<Category | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [activeImage, setActiveImage] = useState<string>('');
   const [selectedSize, setSelectedSize] = useState<string>('');
@@ -44,9 +46,14 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
     async function loadData() {
       setLoading(true);
       try {
-        const prod = await getProductBySlug(slug);
+        const [prod, allCats] = await Promise.all([
+          getProductBySlug(slug),
+          getCategories(),
+        ]);
         setProduct(prod);
         if (prod) {
+          const cat = allCats.find((c) => c.id === prod.category_id) || null;
+          setCategory(cat);
           setActiveImage(prod.thumbnail_url);
           const sizesList = (prod.sizes || []).map(parseSizeOption).filter((s) => s.name.length > 0);
           if (prod.has_sizes !== false && sizesList.length > 0) {
@@ -139,7 +146,8 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
   };
 
   const handleBuyNow = () => {
-    addToCart(product, selectedSize, selectedFlavor, customMessage, quantity, currentPrice);
+    addToCart(product, selectedSize, selectedFlavor, customMessage, quantity, currentPrice, false);
+    closeCart();
     router.push('/checkout');
   };
 
@@ -153,6 +161,10 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
     product.has_flavors !== false && selectedFlavor ? `Flavor: ${selectedFlavor}` : '',
   ].filter(Boolean).join(', ');
 
+  const isGiftBox = product.category_id === 'cat-gift-boxes' || category?.slug === 'gift-boxes';
+  const isDecoration = product.category_id === 'cat-cake-decorations' || category?.slug === 'cake-decorations';
+  const isNonCake = isGiftBox || isDecoration;
+
   const whatsappInquiryUrl = `https://wa.me/92${settings?.whatsapp?.replace(/[^0-9]/g, '').slice(1)}?text=Hello%20Cake%20House,%20I%20am%20interested%20in%20ordering%20*${encodeURIComponent(product.name)}*${selectedDetails ? `%20(${encodeURIComponent(selectedDetails)})` : ''}.`;
 
   return (
@@ -164,10 +176,24 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
             Home
           </Link>
           <ChevronRight className="w-3 h-3" />
-          <Link href="/shop" className="hover:text-gold-600 transition-colors">
-            Cakes
-          </Link>
-          <ChevronRight className="w-3 h-3" />
+          {isNonCake ? (
+            <>
+              <Link
+                href={isGiftBox ? '/shop/gift-boxes' : '/shop/cake-decorations'}
+                className="hover:text-gold-600 transition-colors"
+              >
+                {isGiftBox ? 'Gift Boxes' : 'Cake Decorations'}
+              </Link>
+              <ChevronRight className="w-3 h-3" />
+            </>
+          ) : (
+            <>
+              <Link href="/shop" className="hover:text-gold-600 transition-colors">
+                Cakes
+              </Link>
+              <ChevronRight className="w-3 h-3" />
+            </>
+          )}
           <span className="text-gold-700 font-semibold truncate">{product.name}</span>
         </div>
       </div>
@@ -261,7 +287,7 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
                 )}
                 {product.is_available ? (
                   <span className="text-[11px] font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-200">
-                    Freshly Baked to Order
+                    {isNonCake ? 'In Stock • Ready to Dispatch' : 'Freshly Baked to Order'}
                   </span>
                 ) : (
                   <span className="text-[11px] font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200">
@@ -279,7 +305,12 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
               {product.has_sizes !== false && parsedSizes.length > 0 && (
                 <div className="mt-4 space-y-1.5">
                   <label className="block text-xs font-bold text-chocolate-900 uppercase tracking-wide">
-                    Select Cake Weight / Size: <span className="text-gold-600">{selectedSize}</span>
+                    {isGiftBox
+                      ? 'Select Box Size / Option:'
+                      : isDecoration
+                      ? 'Select Size / Pack:'
+                      : 'Select Cake Weight / Size:'}{' '}
+                    <span className="text-gold-600">{selectedSize}</span>
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {parsedSizes.map((sizeOpt) => (
@@ -315,7 +346,8 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
               {product.has_flavors !== false && parsedFlavors.length > 0 && (
                 <div className="mt-4 space-y-1.5">
                   <label className="block text-xs font-bold text-chocolate-900 uppercase tracking-wide">
-                    Select Delicious Flavor: <span className="text-gold-600">{selectedFlavor}</span>
+                    {isNonCake ? 'Select Color / Style:' : 'Select Delicious Flavor:'}{' '}
+                    <span className="text-gold-600">{selectedFlavor}</span>
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {parsedFlavors.map((flvOpt) => (
@@ -347,20 +379,22 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
                 </div>
               )}
 
-              {/* Custom Message on Cake Input */}
-              <div className="mt-4 space-y-1.5">
-                <label className="block text-xs font-bold text-chocolate-900 uppercase tracking-wide">
-                  Custom Message on Cake (Optional):
-                </label>
-                <input
-                  type="text"
-                  value={customMessage}
-                  onChange={(e) => setCustomMessage(e.target.value)}
-                  placeholder="e.g. Happy Birthday Fatima! (Free piping)"
-                  maxLength={50}
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-cream-300 focus:outline-none focus:border-gold-500 bg-cream-50/50"
-                />
-              </div>
+              {/* Custom Message on Cake Input (Only for cakes!) */}
+              {!isNonCake && (
+                <div className="mt-4 space-y-1.5">
+                  <label className="block text-xs font-bold text-chocolate-900 uppercase tracking-wide">
+                    Custom Message on Cake (Optional):
+                  </label>
+                  <input
+                    type="text"
+                    value={customMessage}
+                    onChange={(e) => setCustomMessage(e.target.value)}
+                    placeholder="e.g. Happy Birthday Fatima! (Free piping)"
+                    maxLength={50}
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-cream-300 focus:outline-none focus:border-gold-500 bg-cream-50/50"
+                  />
+                </div>
+              )}
 
               {/* Quantity Selector & Add to Cart Buttons */}
               <div className="mt-6 pt-4 border-t border-cream-200 space-y-3">
@@ -430,22 +464,45 @@ export default function ProductDetailClientView({ slug }: { slug: string }) {
 
             {/* Quality & Delivery Assurance Pills */}
             <div className="grid grid-cols-2 gap-2 pt-3 border-t border-cream-200 text-[11px] text-chocolate-900/70">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
-                <span>100% Halal & Pure Butter</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Truck className="w-3.5 h-3.5 text-gold-600 flex-shrink-0" />
-                <span>Karachi Chilled Delivery</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-gold-600 flex-shrink-0" />
-                <span>Secure Bank / COD / JazzCash</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Heart className="w-3.5 h-3.5 text-berry-500 flex-shrink-0" />
-                <span>Candle & Knife Included</span>
-              </span>
+              {isNonCake ? (
+                <>
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                    <span>Premium Quality Finish</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5 text-gold-600 flex-shrink-0" />
+                    <span>Karachi Safe Transit Delivery</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-gold-600 flex-shrink-0" />
+                    <span>Secure Bank / COD / JazzCash</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Heart className="w-3.5 h-3.5 text-berry-500 flex-shrink-0" />
+                    <span>Protective Transit Packaging</span>
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                    <span>100% Halal & Pure Butter</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5 text-gold-600 flex-shrink-0" />
+                    <span>Karachi Chilled Delivery</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-gold-600 flex-shrink-0" />
+                    <span>Secure Bank / COD / JazzCash</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Heart className="w-3.5 h-3.5 text-berry-500 flex-shrink-0" />
+                    <span>Candle & Knife Included</span>
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>

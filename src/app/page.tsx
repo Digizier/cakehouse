@@ -241,11 +241,11 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="w-48 h-48 md:w-64 md:h-64 rounded-2xl overflow-hidden border-2 border-gold-300/80 shadow-md flex-shrink-0">
+          <div className="w-full sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-2xl overflow-hidden border-2 border-gold-300/80 shadow-md flex-shrink-0 bg-cream-100">
             <img
-              src="https://images.unsplash.com/photo-1535141192574-5d4897c13136?auto=format&fit=crop&w=600&q=80"
-              alt="Custom Cake House Design"
-              className="w-full h-full object-cover"
+              src="/images/custom-celebration-cake.jpg"
+              alt="Artisanal Custom Celebration Cake by Cake House"
+              className="w-full h-48 sm:h-full object-cover hover:scale-105 transition-transform duration-500"
             />
           </div>
         </div>

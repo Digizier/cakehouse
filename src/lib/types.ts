@@ -79,6 +79,7 @@ export interface Product {
   has_sizes?: boolean;
   has_flavors?: boolean;
   has_dietary?: boolean;
+  has_custom_message?: boolean;
   sizes: (string | ProductSizeOption)[];
   flavors: (string | ProductFlavorOption)[];
   dietary_tags: string[];

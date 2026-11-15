@@ -69,7 +69,7 @@ export default function CategoryClientView({ categorySlug }: { categorySlug: str
             </Link>
             <ChevronRight className="w-3 h-3" />
             <Link href="/shop" className="hover:text-gold-700 transition-colors">
-              Cakes
+              {categorySlug === 'gift-boxes' || categorySlug === 'cake-decorations' ? 'Shop' : 'Cakes'}
             </Link>
             <ChevronRight className="w-3 h-3" />
             <span className="text-gold-800 font-semibold capitalize">
@@ -78,11 +78,15 @@ export default function CategoryClientView({ categorySlug }: { categorySlug: str
           </div>
 
           <h1 className="text-2xl md:text-4xl font-serif font-bold text-[#2B1B10]">
-            {category?.name || 'Artisanal Cakes'}
+            {category?.name || (categorySlug === 'gift-boxes' ? 'Gift Boxes' : categorySlug === 'cake-decorations' ? 'Cake Decorations' : 'Artisanal Cakes')}
           </h1>
           <p className="text-xs md:text-sm text-[#5A4332] max-w-lg mx-auto">
             {category?.description ||
-              'Freshly handcrafted celebration cakes made with premium butter and love in Karachi.'}
+              (categorySlug === 'gift-boxes'
+                ? 'Curated celebration gift boxes, packaging hampers, and festive presentation cases in Karachi.'
+                : categorySlug === 'cake-decorations'
+                ? 'Sparkler candles, premium acrylic toppers, and celebration accessories to elevate your cake.'
+                : 'Freshly handcrafted celebration cakes made with premium butter and love in Karachi.')}
           </p>
         </div>
       </div>

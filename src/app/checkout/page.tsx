@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -13,6 +13,7 @@ import {
   Sparkles,
   ArrowRight,
   FileText,
+  Tag,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCart } from '@/context/CartContext';
@@ -29,6 +30,10 @@ export default function CheckoutPage() {
     deliveryFee,
     netTotal,
     clearCart,
+    closeCart,
+    appliedCoupon,
+    applyCouponCode,
+    removeCoupon,
     settings,
   } = useCart();
 
@@ -49,6 +54,34 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [confirmedOrder, setConfirmedOrder] = useState<any | null>(null);
+
+  // Coupon state for checkout
+  const [couponInput, setCouponInput] = useState('');
+  const [couponError, setCouponError] = useState('');
+  const [couponSuccess, setCouponSuccess] = useState('');
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+
+  // Automatically close cart drawer when checkout page is active
+  useEffect(() => {
+    closeCart();
+  }, [closeCart]);
+
+  const handleApplyCoupon = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!couponInput.trim()) return;
+    setIsApplyingCoupon(true);
+    setCouponError('');
+    setCouponSuccess('');
+
+    const res = await applyCouponCode(couponInput);
+    setIsApplyingCoupon(false);
+    if (res.success) {
+      setCouponSuccess(res.message);
+      setCouponInput('');
+    } else {
+      setCouponError(res.message);
+    }
+  };
 
   const karachiAreas = [
     'Gulshan-e-Iqbal',
@@ -475,6 +508,63 @@ Payment Method: ${confirmedOrder.payment_method.toUpperCase()}`;
                     </span>
                   </div>
                 ))}
+              </div>
+
+              {/* Coupon Code Section */}
+              <div className="pt-3 border-t border-cream-200">
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3.5 py-2.5 text-xs shadow-2xs">
+                    <div className="flex items-center gap-2 text-green-800 font-medium">
+                      <Tag className="w-4 h-4 text-green-600 flex-shrink-0" />
+                      <div>
+                        <span>Coupon <strong>{appliedCoupon.code}</strong> applied!</span>
+                        <span className="block text-[11px] text-green-700">
+                          {appliedCoupon.discount_type === 'percentage'
+                            ? `${appliedCoupon.discount_value}% OFF (-Rs. ${discountAmount.toLocaleString()})`
+                            : `-Rs. ${appliedCoupon.discount_value.toLocaleString()} Flat Discount`}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeCoupon}
+                      className="text-xs text-red-600 hover:text-red-700 font-bold px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Tag className="w-3.5 h-3.5 text-chocolate-900/40 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={couponInput}
+                          onChange={(e) => setCouponInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleApplyCoupon();
+                            }
+                          }}
+                          placeholder="Coupon Code (e.g. SWEETWELCOME)"
+                          className="w-full uppercase text-xs pl-8 pr-3 py-2.5 rounded-xl border border-cream-300 focus:outline-none focus:border-gold-500 bg-cream-50/30"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyCoupon()}
+                        disabled={isApplyingCoupon || !couponInput.trim()}
+                        className="px-4 py-2.5 bg-chocolate-900 hover:bg-chocolate-800 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-2xs"
+                      >
+                        {isApplyingCoupon ? 'Applying...' : 'Apply'}
+                      </button>
+                    </div>
+                    {couponError && <p className="text-[11px] text-red-600 pl-1">{couponError}</p>}
+                    {couponSuccess && <p className="text-[11px] text-green-700 pl-1">{couponSuccess}</p>}
+                  </div>
+                )}
               </div>
 
               {/* Financial Calculation */}

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, Sparkles, Tag, Check, Truck } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 
@@ -45,7 +46,16 @@ export function CartDrawer() {
     }
   };
 
-  if (!isCartOpen) return null;
+  const pathname = usePathname();
+
+  // If user navigates to checkout, automatically ensure cart drawer is closed
+  useEffect(() => {
+    if (pathname === '/checkout' && isCartOpen) {
+      closeCart();
+    }
+  }, [pathname, isCartOpen, closeCart]);
+
+  if (!isCartOpen || pathname === '/checkout') return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">

@@ -1638,101 +1638,136 @@ export default function AdminPage() {
       ==================================================================== */}
       {productModal.open && productModal.item && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-          <div className="w-full max-w-2xl bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 my-8 max-h-[92vh] overflow-y-auto space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <h3 className="font-serif font-bold text-base md:text-lg text-slate-900">
-                  {productModal.item.id ? 'Edit Cake Details' : 'Add New Celebration Cake'}
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  Fill in cake title, pricing, flavors, sizes, and upload multiple WebP photos.
-                </p>
-              </div>
-              <button
-                onClick={() => setProductModal({ open: false, item: null })}
-                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+          {(() => {
+            const currentModalCategory = categories.find(
+              (c) => c.id === (productModal.item?.category_id || categories[0]?.id)
+            );
+            const isModalGiftBox = currentModalCategory?.slug === 'gift-boxes' || productModal.item?.category_id === 'cat-gift-boxes';
+            const isModalDecoration = currentModalCategory?.slug === 'cake-decorations' || productModal.item?.category_id === 'cat-cake-decorations';
+            const isModalNonCake = isModalGiftBox || isModalDecoration;
 
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const cleanSizes = productSizeRows
-                  .map((s) => ({ name: s.name.trim(), price: Math.max(0, Number(s.price) || 0) }))
-                  .filter((s) => s.name.length > 0);
+            return (
+              <div className="w-full max-w-2xl bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-200 my-8 max-h-[92vh] overflow-y-auto space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div>
+                    <h3 className="font-serif font-bold text-base md:text-lg text-slate-900">
+                      {productModal.item.id
+                        ? isModalGiftBox
+                          ? 'Edit Gift Box Details'
+                          : isModalDecoration
+                          ? 'Edit Cake Decoration Details'
+                          : 'Edit Cake Details'
+                        : isModalGiftBox
+                        ? 'Add New Gift Box / Packaging Item'
+                        : isModalDecoration
+                        ? 'Add New Cake Decoration / Topper'
+                        : 'Add New Celebration Cake'}
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      {isModalNonCake
+                        ? 'Fill in item title, pricing, style/options, and upload multiple WebP photos.'
+                        : 'Fill in cake title, pricing, flavors, sizes, and upload multiple WebP photos.'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setProductModal({ open: false, item: null })}
+                    className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
-                const cleanFlavors = productFlavorRows
-                  .map((f) => ({ name: f.name.trim(), price: Math.max(0, Number(f.price) || 0) }))
-                  .filter((f) => f.name.length > 0);
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const cleanSizes = productSizeRows
+                      .map((s) => ({ name: s.name.trim(), price: Math.max(0, Number(s.price) || 0) }))
+                      .filter((s) => s.name.length > 0);
 
-                const parsedDietary = productDietaryInput
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean);
+                    const cleanFlavors = productFlavorRows
+                      .map((f) => ({ name: f.name.trim(), price: Math.max(0, Number(f.price) || 0) }))
+                      .filter((f) => f.name.length > 0);
 
-                const itemToSave: Partial<Product> = {
-                  ...productModal.item!,
-                  has_sizes: productHasSizes,
-                  has_flavors: productHasFlavors,
-                  has_dietary: productHasDietary,
-                  sizes: productHasSizes
-                    ? cleanSizes.length > 0
-                      ? cleanSizes
-                      : [{ name: 'Standard', price: 0 }]
-                    : [],
-                  flavors: productHasFlavors
-                    ? cleanFlavors.length > 0
-                      ? cleanFlavors
-                      : [{ name: 'Standard Flavor', price: 0 }]
-                    : [],
-                  dietary_tags: productHasDietary
-                    ? parsedDietary.length > 0
-                      ? parsedDietary
-                      : ['Handcrafted']
-                    : [],
-                };
+                    const parsedDietary = productDietaryInput
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean);
 
-                await saveProduct(itemToSave);
-                await loadAdminData();
-                setProductModal({ open: false, item: null });
-                showToast(`Cake "${itemToSave.name}" saved successfully to cloud database!`, 'success');
-              }}
-              className="space-y-4 text-xs"
-            >
-              {/* Cake Name & Slug preview */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Cake Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Belgian Truffle Royale Cake"
-                  value={productModal.item.name || ''}
-                  onChange={(e) => {
-                    const name = e.target.value;
-                    const autoSlug = name
-                      .toLowerCase()
-                      .trim()
-                      .replace(/[^\w\s-]/g, '')
-                      .replace(/[\s_-]+/g, '-')
-                      .replace(/^-+|-+$/g, '');
-                    setProductModal({
-                      ...productModal,
-                      item: { ...productModal.item, name, slug: autoSlug },
-                    });
+                    const itemToSave: Partial<Product> = {
+                      ...productModal.item!,
+                      has_sizes: productHasSizes,
+                      has_flavors: productHasFlavors,
+                      has_dietary: productHasDietary,
+                      sizes: productHasSizes
+                        ? cleanSizes.length > 0
+                          ? cleanSizes
+                          : [{ name: 'Standard', price: 0 }]
+                        : [],
+                      flavors: productHasFlavors
+                        ? cleanFlavors.length > 0
+                          ? cleanFlavors
+                          : [{ name: 'Standard Flavor', price: 0 }]
+                        : [],
+                      dietary_tags: productHasDietary
+                        ? parsedDietary.length > 0
+                          ? parsedDietary
+                          : ['Handcrafted']
+                        : [],
+                    };
+
+                    await saveProduct(itemToSave);
+                    await loadAdminData();
+                    setProductModal({ open: false, item: null });
+                    showToast(`${isModalNonCake ? 'Item' : 'Cake'} "${itemToSave.name}" saved successfully to cloud database!`, 'success');
                   }}
-                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-gold-500"
-                />
-                <p className="text-[10px] text-slate-400 mt-1 font-mono">
-                  Catalog Link: /product/{productModal.item.slug || 'cake-title'}
-                </p>
-              </div>
+                  className="space-y-4 text-xs"
+                >
+                  {/* Cake/Item Name & Slug preview */}
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      {isModalGiftBox
+                        ? 'Gift Box / Hamper Name *'
+                        : isModalDecoration
+                        ? 'Decoration / Accessory Name *'
+                        : isModalNonCake
+                        ? 'Product Name *'
+                        : 'Cake Name *'}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder={
+                        isModalGiftBox
+                          ? 'e.g. Premium Rigid Celebration Gift Box with Ribbon'
+                          : isModalDecoration
+                          ? 'e.g. Luxury Happy Birthday Gold Acrylic Topper'
+                          : 'e.g. Belgian Truffle Royale Cake'
+                      }
+                      value={productModal.item.name || ''}
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        const autoSlug = name
+                          .toLowerCase()
+                          .trim()
+                          .replace(/[^\w\s-]/g, '')
+                          .replace(/[\s_-]+/g, '-')
+                          .replace(/^-+|-+$/g, '');
+                        setProductModal({
+                          ...productModal,
+                          item: { ...productModal.item, name, slug: autoSlug },
+                        });
+                      }}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-gold-500"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1 font-mono">
+                      Catalog Link: /product/{productModal.item.slug || (isModalNonCake ? 'product-title' : 'cake-title')}
+                    </p>
+                  </div>
 
-              {/* Price Row */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Original Price (PKR) *</label>
+                  {/* Price Row */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Original Price (PKR) *</label>
                   <input
                     type="number"
                     required
@@ -1771,19 +1806,69 @@ export default function AdminPage() {
               {/* Category & Dependent Subcategory */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Parent Category *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-bold text-slate-700">Parent Category *</label>
+                    {isModalNonCake ? (
+                      <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-full border border-purple-200">
+                        📦 {isModalGiftBox ? 'Gift Box / Hamper' : 'Decoration / Accessory'}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-200">
+                        🎂 Celebration Cake
+                      </span>
+                    )}
+                  </div>
                   <select
                     value={productModal.item.category_id || categories[0]?.id}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newCatId = e.target.value;
+                      const selectedC = categories.find((c) => c.id === newCatId);
+                      const isNewCatNonCake =
+                        selectedC?.slug === 'gift-boxes' ||
+                        selectedC?.slug === 'cake-decorations' ||
+                        newCatId === 'cat-gift-boxes' ||
+                        newCatId === 'cat-cake-decorations';
+
+                      if (isNewCatNonCake) {
+                        setProductHasFlavors(false);
+                        setProductHasDietary(false);
+                        if (productSizeRows.some((s) => s.name.includes('lbs'))) {
+                          setProductSizeRows([{ name: 'Standard', price: 0 }]);
+                        }
+                        if (productFlavorRows.some((f) => f.name.toLowerCase().includes('fudge'))) {
+                          setProductFlavorRows([{ name: 'Standard', price: 0 }]);
+                        }
+                        setProductDietaryInput('');
+                      } else {
+                        if (productSizeRows.length === 1 && productSizeRows[0].name === 'Standard') {
+                          setProductSizeRows([
+                            { name: '2.5 lbs', price: 0 },
+                            { name: '3.5 lbs', price: 500 },
+                          ]);
+                          setProductHasSizes(true);
+                        }
+                        if (!productHasFlavors || (productFlavorRows.length === 1 && productFlavorRows[0].name === 'Standard')) {
+                          setProductFlavorRows([
+                            { name: 'Chocolate Fudge', price: 0 },
+                            { name: 'Red Velvet', price: 0 },
+                          ]);
+                          setProductHasFlavors(true);
+                        }
+                        if (!productHasDietary || !productDietaryInput) {
+                          setProductDietaryInput('Fresh Cream');
+                          setProductHasDietary(true);
+                        }
+                      }
+
                       setProductModal({
                         ...productModal,
                         item: {
                           ...productModal.item,
-                          category_id: e.target.value,
+                          category_id: newCatId,
                           sub_category_id: null,
                         },
-                      })
-                    }
+                      });
+                    }}
                     className="w-full p-2.5 rounded-xl border border-slate-300 bg-white"
                   >
                     {categories.map((c) => (
@@ -1914,10 +1999,16 @@ export default function AdminPage() {
                 <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                   <div>
                     <label className="block font-bold text-slate-800 text-xs">
-                      Available Sizes / Weights &amp; Pricing
+                      {isModalGiftBox
+                        ? 'Available Box Sizes / Options & Pricing'
+                        : isModalDecoration
+                        ? 'Available Sizes / Pack Variations & Pricing'
+                        : 'Available Sizes / Weights & Pricing'}
                     </label>
                     <p className="text-[11px] text-slate-500">
-                      Enable to offer weight tiers (e.g. 1.5 lbs, 2.5 lbs) with optional additional prices.
+                      {isModalNonCake
+                        ? 'Enable to offer size or pack tiers (e.g. Standard, Large) with optional additional prices.'
+                        : 'Enable to offer weight tiers (e.g. 1.5 lbs, 2.5 lbs) with optional additional prices.'}
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -1942,7 +2033,11 @@ export default function AdminPage() {
                           <div className="flex-1">
                             <input
                               type="text"
-                              placeholder="Size name (e.g. 2.5 lbs, Pack of 6)"
+                              placeholder={
+                                isModalNonCake
+                                  ? 'Option name (e.g. Standard Box, Pack of 6)'
+                                  : 'Size name (e.g. 2.5 lbs, 3.5 lbs)'
+                              }
                               value={row.name}
                               onChange={(e) => {
                                 const updated = [...productSizeRows];
@@ -1995,7 +2090,7 @@ export default function AdminPage() {
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold-50 hover:bg-gold-100 text-gold-800 font-bold text-xs border border-gold-200 transition-colors"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        Add Another Size Option
+                        {isModalNonCake ? 'Add Another Option' : 'Add Another Size Option'}
                       </button>
                       <span className="text-[11px] text-slate-500">
                         Enter <strong>0</strong> for base price, or extra PKR (e.g. <strong>500</strong>).
@@ -2006,21 +2101,25 @@ export default function AdminPage() {
                   <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 text-amber-800 text-[11px] flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
                     <span>
-                      Sizes are <strong>turned OFF</strong>. Customers will not see size options on the product page (ideal for gift boxes, accessories, or fixed items).
+                      Sizes/Options are <strong>turned OFF</strong>. Customers will not see size options on the product page.
                     </span>
                   </div>
                 )}
               </div>
 
-              {/* 2. FLAVOR CHOICES SECTION (Toggle ON/OFF & Additional Price) */}
+              {/* 2. FLAVOR / STYLE CHOICES SECTION (Toggle ON/OFF & Additional Price) */}
               <div className="p-4 bg-slate-50/70 rounded-2xl border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                   <div>
                     <label className="block font-bold text-slate-800 text-xs">
-                      Available Flavors &amp; Pricing
+                      {isModalNonCake
+                        ? 'Available Colors / Styles & Pricing (Optional)'
+                        : 'Available Flavors & Pricing'}
                     </label>
                     <p className="text-[11px] text-slate-500">
-                      Enable to offer flavor options (e.g. Belgian Fudge, Nutella) with optional additional prices.
+                      {isModalNonCake
+                        ? 'Enable to offer color or style choices (e.g. Gold, Rose Gold, Silver) with optional additional prices.'
+                        : 'Enable to offer flavor options (e.g. Belgian Fudge, Nutella) with optional additional prices.'}
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -2045,7 +2144,11 @@ export default function AdminPage() {
                           <div className="flex-1">
                             <input
                               type="text"
-                              placeholder="Flavor name (e.g. Belgian Chocolate Ganache, Nutella Ferrero)"
+                              placeholder={
+                                isModalNonCake
+                                  ? 'Color / Style name (e.g. Mirror Gold, Rose Gold, Glossy Silver)'
+                                  : 'Flavor name (e.g. Belgian Chocolate Ganache, Nutella Ferrero)'
+                              }
                               value={row.name}
                               onChange={(e) => {
                                 const updated = [...productFlavorRows];
@@ -2081,7 +2184,7 @@ export default function AdminPage() {
                               setProductFlavorRows(updated.length > 0 ? updated : [{ name: '', price: 0 }]);
                             }}
                             className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Remove flavor option"
+                            title="Remove option"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -2098,7 +2201,7 @@ export default function AdminPage() {
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold-50 hover:bg-gold-100 text-gold-800 font-bold text-xs border border-gold-200 transition-colors"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        Add Another Flavor Option
+                        {isModalNonCake ? 'Add Another Color / Style' : 'Add Another Flavor Option'}
                       </button>
                       <span className="text-[11px] text-slate-500">
                         Enter <strong>0</strong> for base price, or extra PKR (e.g. <strong>300</strong>).
@@ -2109,7 +2212,9 @@ export default function AdminPage() {
                   <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 text-amber-800 text-[11px] flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
                     <span>
-                      Flavors are <strong>turned OFF</strong>. Flavor choice selector will be hidden on the product page.
+                      {isModalNonCake
+                        ? 'Colors/Styles are turned OFF. No variant selection will be shown.'
+                        : 'Flavors are turned OFF. Flavor choice selector will be hidden on the product page.'}
                     </span>
                   </div>
                 )}
@@ -2120,10 +2225,14 @@ export default function AdminPage() {
                 <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                   <div>
                     <label className="block font-bold text-slate-800 text-xs">
-                      Quality &amp; Dietary Badges (Comma Separated)
+                      {isModalNonCake
+                        ? 'Material & Quality Badges (Optional)'
+                        : 'Quality & Dietary Badges (Comma Separated)'}
                     </label>
                     <p className="text-[11px] text-slate-500">
-                      Show highlight trust pills on product detail page (e.g. Fresh Cream, 100% Halal).
+                      {isModalNonCake
+                        ? 'Show highlight badges on product page (e.g. Luxury Acrylic, Satin Ribbon, Reusable).'
+                        : 'Show highlight trust pills on product detail page (e.g. Fresh Cream, 100% Halal).'}
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -2144,7 +2253,11 @@ export default function AdminPage() {
                   <div>
                     <input
                       type="text"
-                      placeholder="e.g. Fresh Cream, 100% Halal, Pure Butter, Eggless Available"
+                      placeholder={
+                        isModalNonCake
+                          ? 'e.g. Luxury Acrylic, Mirror Gold Finish, Pack of 6'
+                          : 'e.g. Fresh Cream, 100% Halal, Pure Butter, Eggless Available'
+                      }
                       value={productDietaryInput}
                       onChange={(e) => setProductDietaryInput(e.target.value)}
                       className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-medium focus:border-gold-500 focus:outline-none"
@@ -2169,7 +2282,9 @@ export default function AdminPage() {
                   <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 text-amber-800 text-[11px] flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
                     <span>
-                      Badges are <strong>turned OFF</strong>. No dietary badges will be displayed on the product page.
+                      {isModalNonCake
+                        ? 'Badges are turned OFF. No highlight tags will be displayed.'
+                        : 'Badges are turned OFF. No dietary badges will be displayed on the product page.'}
                     </span>
                   </div>
                 )}
@@ -2181,7 +2296,11 @@ export default function AdminPage() {
                 <textarea
                   rows={3}
                   required
-                  placeholder="Describe the layers, rich ganache, sponge softness, and celebration vibes..."
+                  placeholder={
+                    isModalNonCake
+                      ? 'Describe material, dimensions, pack contents, color details, and usage...'
+                      : 'Describe the layers, rich ganache, sponge softness, and celebration vibes...'
+                  }
                   value={productModal.item.description || ''}
                   onChange={(e) =>
                     setProductModal({
@@ -2222,7 +2341,7 @@ export default function AdminPage() {
                     }
                     className="rounded text-gold-600 focus:ring-gold-500 w-4 h-4"
                   />
-                  <span>Featured Cake</span>
+                  <span>{isModalNonCake ? 'Featured Item' : 'Featured Cake'}</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-800">
@@ -2246,13 +2365,15 @@ export default function AdminPage() {
                   type="submit"
                   className="w-full py-3 bg-gold-600 hover:bg-gold-700 text-white rounded-xl font-bold shadow-sm transition-colors text-xs active:scale-[0.99]"
                 >
-                  Save Cake Product to Database
+                  {isModalNonCake ? 'Save Product to Database' : 'Save Cake Product to Database'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+        );
+      })()}
+    </div>
+  )}
 
       {/* ====================================================================
           CATEGORY MODAL

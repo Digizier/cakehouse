@@ -12,7 +12,8 @@ interface CartContextType {
     selectedFlavor?: string,
     customMessage?: string,
     quantity?: number,
-    customPrice?: number
+    customPrice?: number,
+    openDrawer?: boolean
   ) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -76,7 +77,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     selectedFlavor?: string,
     customMessage?: string,
     quantity = 1,
-    customPrice?: number
+    customPrice?: number,
+    openDrawer = true
   ) => {
     const size = product.has_sizes === false ? '' : (selectedSize || (product.sizes?.[0] ? (typeof product.sizes[0] === 'string' ? product.sizes[0] : product.sizes[0].name) : 'Standard'));
     const flavor = product.has_flavors === false ? '' : (selectedFlavor || (product.flavors?.[0] ? (typeof product.flavors[0] === 'string' ? product.flavors[0] : product.flavors[0].name) : 'Standard'));
@@ -108,7 +110,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       ];
     });
 
-    setIsCartOpen(true);
+    if (openDrawer) {
+      setIsCartOpen(true);
+    }
   };
 
   const removeFromCart = (id: string) => {
